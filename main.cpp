@@ -13,8 +13,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <string>
+#include <pthread.h>
+#include <sys/queue.h>
 
 #include "common.h"
+#include "myqueue.h"
+#include "connection.h"
 
 using namespace std;
 
@@ -31,22 +35,6 @@ using namespace std;
 #define DEBUG true
 
 
-
-
-typedef struct sysCfg
-{
-    unsigned int thMax;
-    unsigned short bbPort;
-    unsigned short syncPort;
-    string bbFile;
-    string peers;
-    bool daemon;
-    bool debug;
-    unsigned int maxConnections;
-}sysCfg;
-
-sysCfg CONFIG;
-
 int load_config()
 {
     memset((void *) &CONFIG, 0, sizeof(CONFIG));
@@ -54,8 +42,8 @@ int load_config()
     CONFIG.thMax = 20;
     CONFIG.bbPort = BBPORT;
     CONFIG.syncPort = SYNCPORT;
-    CONFIG.bbFile = "bbfile";
-    CONFIG.peers = "127.0.0.1:8000";
+    strcpy(CONFIG.bbFile,"bbfile");
+    strcpy(CONFIG.peers, "127.0.0.1:8000");
     CONFIG.daemon = DAEMON;
     CONFIG.debug = DEBUG;
 
@@ -110,26 +98,14 @@ int create_tcp_server_sock()
 
 int start_comm_service()
 {
-    int server_fd, new_fd, ret, i;
-
-    int maxConn = CONFIG.maxConnections;
+    int server_fd, new_fd, ret;
 
     sockaddr_in clientAddr;
     socklen_t clientAddrSize = sizeof(clientAddr);
 
     fd_set read_fd_set;
 
-    int connections[maxConn];
-
-    char buf[4096];
-    int bytesRecved = -1;
-
-    memset(buf, 0, sizeof(buf));
-
-    for (i=0;i<maxConn;i++)
-    {
-        connections[i] = -1;
-    }
+    conn_init();
 
     //create server listening socket
     server_fd = create_tcp_server_sock();
@@ -139,21 +115,13 @@ int start_comm_service()
         return ERR;
     }
 
-
-    connections[0] = server_fd;
+    conn_add(server_fd);
 
     while(true)
     {
         FD_ZERO(&read_fd_set);
 
-        for(i=0;i<maxConn;i++)
-        {
-            if(connections[i] >= 0)
-            {
-                FD_SET(connections[i], &read_fd_set);
-            }
-
-        }
+        conn_set_fdset(&read_fd_set);
 
         //Invoke select()
         //cout << "Invoke select to listen for incoming events" << endl;
@@ -162,87 +130,155 @@ int start_comm_service()
 
         //cout << "Select returned with " << ret << endl;
 
-        if (ret >= 0)
+        if (ret < 0)
         {
-            //check if the fd with event is the sever fd, accept new connection
-            if(FD_ISSET(server_fd, &read_fd_set))
+            cout << "select return error!"<<endl;
+            continue;
+        }
+
+
+        //check if the fd with event is the sever fd, accept new connection
+        if(FD_ISSET(server_fd, &read_fd_set))
+        {
+            new_fd = accept(server_fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
+
+            if(new_fd >= 0)
             {
-                new_fd = accept(server_fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
-
-                if(new_fd >= 0)
-                {
-                    cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
-                    //add new fd to fd set
-                    for (i=0;i<maxConn;i++)
-                    {
-                        if(connections[i] < 0)
-                        {
-                            connections[i] = new_fd;
-                            break;
-                        }
-                    }
-                }
-                else{
-
-                    cout << "Error on accepting!" << endl;
-                }
+                cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
+                //add new fd to fd set
+                conn_add(new_fd);
             }
-         }
-
-        //check if the fd with event is a non-server fd, reveive data
-        for (i=0;i<maxConn;i++)
-        {
-            if((connections[i] > 0) && (connections[i] != server_fd) && FD_ISSET(connections[i], &read_fd_set))
+            else
             {
-                bytesRecved = recv(connections[i], buf, sizeof(buf), 0);
-
-                if (bytesRecved == -1)
-                {
-                    cout << "Error in recv()" << endl;
-                    break;
-                }
-                else if (bytesRecved == 0)
-                {
-                    cout << "Client:" << inet_ntoa(clientAddr.sin_addr) << " disconnected!" << endl;
-
-                    close(connections[i]);
-                    connections[i] = -1;
-
-                    break;
-                }
-                else if (bytesRecved > 0)
-                {
-                    cout << "Msg recved from " << inet_ntoa(clientAddr.sin_addr) <<":" << ntohs(clientAddr.sin_port)<<" [" << bytesRecved << " Bytes]: "
-                        << string(buf, 0, bytesRecved)<< endl;
-
-                    //echo
-                    send(connections[i], buf, bytesRecved+1, 0);
-                }
-
+                cout << "Error on accepting!" << endl;
             }
         }
+        else
+        {
+            //check if the fd with event is a non-server fd, reveive data
+            conn_check_fd_set(&read_fd_set, &clientAddr);
+        }
+
     }//while()
 
     // close all sockets
-    for (i=0;i<maxConn;i++)
+    conn_close_all();
+
+    return SUCCESS;
+}
+
+void * handle_client(void * arg)
+{
+    char *argv = nullptr;
+
+    int fd, bytesRecved = -1;
+
+    sockaddr_in clientAddr;
+
+    client *pClient = nullptr;
+
+    char buf[4096];
+
+    memset(buf, 0, sizeof(buf));
+
+    while(true)
     {
-        if(connections[i] > 0)
+        pClient = deClientQueue();
+
+        if(nullptr == pClient)
         {
-            close(connections[i]);
-            connections[i] = -1;
+            continue;
+        }
+
+        cout << "deQueue Client fd = " << pClient->fd << endl;
+
+        fd = pClient->fd;
+
+        clientAddr = pClient->clientAddr;
+
+        delete pClient;
+
+        bytesRecved = recv(fd, buf, sizeof(buf), 0);
+
+        if (bytesRecved == -1)
+        {
+            cout << "Error in recv()" << endl;
+            continue;
+        }
+        else if (bytesRecved == 0)
+        {
+            cout << "Client:" << inet_ntoa(clientAddr.sin_addr) << " disconnected!" << endl;
+
+            conn_del(fd);
+
+            continue;
+        }
+        else if (bytesRecved > 0)
+        {
+            cout << "Msg recved from " << inet_ntoa(clientAddr.sin_addr) <<":" << ntohs(clientAddr.sin_port)<<" [" << bytesRecved << " Bytes]: "
+                << string(buf, 0, bytesRecved)<< endl;
+
+            //echo
+            send(fd, buf, bytesRecved+1, 0);
         }
     }
 
+    return argv;
+}
+
+int create_thread_pool()
+{
+    pthread_t threadPool[CONFIG.thMax];
+
+    for(unsigned int i=0;i<CONFIG.thMax;i++)
+    {
+        pthread_create(&threadPool[i], NULL, handle_client, NULL);
+    }
+
+    cout << "client thread pool created!" << endl;
 
     return SUCCESS;
-
 }
+
 
 int main(int argc, char **argv)
 {
     load_config();
 
+    create_client_queue();
+
+    create_thread_pool();
+
     start_comm_service();
+
+//    client *c1, *c2, *c3;
+//
+//    c1 = new client;
+//    c2 = new client;
+//    c3 = new client;
+//    c1->fd =1;
+//    c2->fd =2;
+//    c3->fd =3;
+//
+//
+//
+//    create_client_queue();
+//
+//    enClientQueue(c1);
+//    enClientQueue(c2);
+//    enClientQueue(c3);
+//
+//    client *c;
+//
+//    while(!isClientQueueEmpty())
+//    {
+//        c = deClientQueue();
+//        cout << c->fd << endl;
+//    }
+//
+//    delete c1;
+//    delete c2;
+//    delete c3;
 
 
 
