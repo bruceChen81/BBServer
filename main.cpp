@@ -15,157 +15,18 @@
 #include <string>
 #include <pthread.h>
 #include <sys/queue.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 #include "common.h"
-#include "myqueue.h"
+#include "config.h"
+#include "queue.h"
 #include "connection.h"
 
 using namespace std;
 
 
-#define SUCCESS 1
-#define ERR -1
 
-#define THMAX 20
-#define BBPORT 8000+254
-#define SYNCPORT 10000+254
-#define BBFILE "bbfile"
-#define PEERS "127.0.0.1:8000, "
-#define DAEMON true
-#define DEBUG true
-
-
-int load_config()
-{
-    memset((void *) &CONFIG, 0, sizeof(CONFIG));
-
-    CONFIG.thMax = 20;
-    CONFIG.bbPort = BBPORT;
-    CONFIG.syncPort = SYNCPORT;
-    strcpy(CONFIG.bbFile,"bbfile");
-    strcpy(CONFIG.peers, "127.0.0.1:8000");
-    CONFIG.daemon = DAEMON;
-    CONFIG.debug = DEBUG;
-
-    CONFIG.maxConnections = CONFIG.thMax;
-
-    cout << "load config success!" << endl;
-
-    if (CONFIG.debug)
-    {
-        cout << "THMAX = " << CONFIG.thMax << endl << "BBPORT = " << CONFIG.bbPort << endl << "SYNCPORT = " << CONFIG.bbPort << endl;
-        cout << "BBFILE = " << CONFIG.bbFile << endl << "PEERS = " << CONFIG.peers << endl;
-        cout << "DAEMON = " << CONFIG.daemon << endl << "DEBUG = " << CONFIG.debug << endl;
-    }
-
-
-    return SUCCESS;
-}
-
-int create_tcp_server_sock()
-{
-    int fd = 0;
-
-    fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if(fd < 0)
-    {
-        cout << "Can not create a socket!" << endl;
-        return ERR;
-    }
-
-    //bind
-    sockaddr_in hint;
-    hint.sin_family = AF_INET;
-    hint.sin_port = htons(CONFIG.bbPort);
-    hint.sin_addr.s_addr = INADDR_ANY;
-    //inet_pton(AF_INET, "0.0.0.0", &hint.sin_addr);
-
-    if (bind(fd,(sockaddr *)&hint, sizeof(hint)) < 0)
-    {
-        cout << "Error binding!" << endl;
-        return ERR;
-    }
-
-    //listen
-    cout << "Waiting for client!" << endl;
-
-    //listen(listeningSock, SOMAXCONN);
-    listen(fd, 5);
-
-    return fd;
-}
-
-int start_comm_service()
-{
-    int server_fd, new_fd, ret;
-
-    sockaddr_in clientAddr;
-    socklen_t clientAddrSize = sizeof(clientAddr);
-
-    fd_set read_fd_set;
-
-    conn_init();
-
-    //create server listening socket
-    server_fd = create_tcp_server_sock();
-
-    if (ERR == server_fd)
-    {
-        return ERR;
-    }
-
-    conn_add(server_fd);
-
-    while(true)
-    {
-        FD_ZERO(&read_fd_set);
-
-        conn_set_fdset(&read_fd_set);
-
-        //Invoke select()
-        //cout << "Invoke select to listen for incoming events" << endl;
-
-        ret = select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL);
-
-        //cout << "Select returned with " << ret << endl;
-
-        if (ret < 0)
-        {
-            cout << "select return error!"<<endl;
-            continue;
-        }
-
-
-        //check if the fd with event is the sever fd, accept new connection
-        if(FD_ISSET(server_fd, &read_fd_set))
-        {
-            new_fd = accept(server_fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
-
-            if(new_fd >= 0)
-            {
-                cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
-                //add new fd to fd set
-                conn_add(new_fd);
-            }
-            else
-            {
-                cout << "Error on accepting!" << endl;
-            }
-        }
-        else
-        {
-            //check if the fd with event is a non-server fd, reveive data
-            conn_check_fd_set(&read_fd_set, &clientAddr);
-        }
-
-    }//while()
-
-    // close all sockets
-    conn_close_all();
-
-    return SUCCESS;
-}
 
 void * handle_client(void * arg)
 {
@@ -241,47 +102,66 @@ int create_thread_pool()
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
     load_config();
 
-    create_client_queue();
+    int option;
 
-    create_thread_pool();
+    int bflag = 0, Tflag = 0, pflag = 0, sflag = 0,fflag = 0, dflag = 0;
 
-    start_comm_service();
+    while(true)
+    {
 
-//    client *c1, *c2, *c3;
-//
-//    c1 = new client;
-//    c2 = new client;
-//    c3 = new client;
-//    c1->fd =1;
-//    c2->fd =2;
-//    c3->fd =3;
-//
-//
-//
+
+
+    while ((option = getopt(argc,argv, "bTpsfd:")) != -1)
+    {
+        switch(option)
+        {
+            case 'b':
+                bflag = 1;
+                cout<<optarg<<endl;
+                break;
+            case 'T':
+                Tflag = 1;
+                cout<<optarg<<endl;
+                break;
+            case 'p':
+                pflag = 1;
+                cout<<optarg<<endl;
+                break;
+
+            case 's':
+                sflag = 1;
+                cout<<optarg<<endl;
+                break;
+
+            case 'f':
+                fflag = 1;
+                cout<<optarg<<endl;
+                break;
+
+            case 'd':
+                dflag = 1;
+                cout<<optarg<<endl;
+                break;
+
+            default:
+                //bflag = 1;
+                cout<<"Invalid option!"<<endl;
+                break;
+        }
+    }
+
+    }
+
 //    create_client_queue();
 //
-//    enClientQueue(c1);
-//    enClientQueue(c2);
-//    enClientQueue(c3);
+//    create_thread_pool();
 //
-//    client *c;
-//
-//    while(!isClientQueueEmpty())
-//    {
-//        c = deClientQueue();
-//        cout << c->fd << endl;
-//    }
-//
-//    delete c1;
-//    delete c2;
-//    delete c3;
+//    start_comm_service();
 
 
-
-    //int lis = socket()
     return 0;
 }
