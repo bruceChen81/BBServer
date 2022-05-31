@@ -32,8 +32,14 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Unit filename="common.h" />
+		<Unit filename="config.cpp" />
+		<Unit filename="config.h" />
+		<Unit filename="connection.cpp" />
+		<Unit filename="connection.h" />
 		<Unit filename="main.cpp" />
-		<Unit filename="myqueue.h" />
+		<Unit filename="queue.cpp" />
+		<Unit filename="queue.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>

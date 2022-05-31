@@ -106,55 +106,7 @@ int main(int argc, char *argv[])
 {
     load_config();
 
-    int option;
-
-    int bflag = 0, Tflag = 0, pflag = 0, sflag = 0,fflag = 0, dflag = 0;
-
-    while(true)
-    {
-
-
-
-    while ((option = getopt(argc,argv, "bTpsfd:")) != -1)
-    {
-        switch(option)
-        {
-            case 'b':
-                bflag = 1;
-                cout<<optarg<<endl;
-                break;
-            case 'T':
-                Tflag = 1;
-                cout<<optarg<<endl;
-                break;
-            case 'p':
-                pflag = 1;
-                cout<<optarg<<endl;
-                break;
-
-            case 's':
-                sflag = 1;
-                cout<<optarg<<endl;
-                break;
-
-            case 'f':
-                fflag = 1;
-                cout<<optarg<<endl;
-                break;
-
-            case 'd':
-                dflag = 1;
-                cout<<optarg<<endl;
-                break;
-
-            default:
-                //bflag = 1;
-                cout<<"Invalid option!"<<endl;
-                break;
-        }
-    }
-
-    }
+    load_option(argc, argv);
 
 //    create_client_queue();
 //

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
@@ -10,6 +11,217 @@
 using namespace std;
 
 sysCfg CONFIG;
+
+int print_config()
+{
+    if (CONFIG.debug)
+        {
+            cout << "THMAX: " << CONFIG.thMax << endl << "BBPORT: " << CONFIG.bbPort << endl << "SYNCPORT: " << CONFIG.syncPort << endl;
+            cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
+            cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
+        }
+
+    return 0;
+}
+
+int load_config()
+{
+    int fd;
+    unsigned int tmax, bp, sp;
+    unsigned int parameter;
+
+    ssize_t bytesRead;
+
+    char buf[256];
+    char para[128];
+
+    memset(buf, 0, sizeof(buf));
+
+    //CHECK(fd = open("bbserv1111.conf", O_RDONLY));
+
+    fd = open("bbserv.conf", O_RDONLY);
+
+    CHECK(fd);
+
+    bytesRead = read(fd, buf, sizeof(buf));
+
+    memset((void *) &CONFIG, 0, sizeof(CONFIG));
+
+    //THMAX
+    CONFIG.thMax = 20;
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"THMAX="))
+    {
+        tmax = atoi(para);
+
+        if(0<tmax && tmax<MAX_THREAD_POOL)
+        {
+            CONFIG.thMax = tmax;
+        }
+    }
+
+    //BBPORT
+    CONFIG.bbPort = 9000;
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"BBPORT="))
+    {
+        bp = atoi(para);
+
+        if(0<bp && bp<65535)
+        {
+            CONFIG.bbPort = bp;
+        }
+    }
+
+
+    //SYNCPORT
+    CONFIG.syncPort = 10000;
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"SYNCPORT="))
+    {
+        sp = atoi(para);
+
+        if(0<sp && sp<65535)
+        {
+            CONFIG.syncPort = sp;
+        }
+    }
+
+    //BBFILE --- mandatory
+    strcpy(CONFIG.bbFile, "");
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"BBFILE="))
+    {
+        strcpy(CONFIG.bbFile, para);
+    }
+
+    //PEERS
+    strcpy(CONFIG.peers, "");
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"PEERS="))
+    {
+        strcpy(CONFIG.peers, para);
+    }
+
+    //DAEMON
+    CONFIG.daemon = true;
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS != getParaFromBuf((char *)buf, (char *)para,(char *)"DAEMON="))
+    {
+        CONFIG.daemon = false;
+    }
+
+    //DEBUG
+    CONFIG.debug = false;
+
+    memset(para, 0, sizeof(para));
+
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"DEBUG="))
+    {
+        if(*para == 'D')
+        {
+            CONFIG.debug = true;
+        }
+    }
+
+    //CONFIG.maxConnections = CONFIG.thMax;
+
+    cout << "load config file success!" << endl;
+
+    print_config();
+
+    return SUCCESS;
+}
+
+int load_option(int argc, char **argv)
+{
+    int option;
+    unsigned int tmax, bp, sp;
+
+    bool isOptionSet = false;
+
+//    extern char *optarg;
+//    extern int optind, optopt;
+
+    while ((option = getopt(argc,argv, "b:t:T:p:s:fd")) != -1)
+    {
+        switch(option)
+        {
+            case 'b':
+                strcpy(CONFIG.bbFile,optarg);
+                isOptionSet = true;
+                cout<<CONFIG.bbFile<<endl;
+                break;
+
+            case 'T':
+            case 't':
+                tmax = atoi(optarg);
+                if(0<tmax && tmax<MAX_THREAD_POOL)
+                {
+                    CONFIG.thMax = tmax;
+                    isOptionSet = true;
+                    cout<<CONFIG.thMax<<endl;
+                }
+                break;
+
+            case 'p':
+                bp = atoi(optarg);
+                if(0<bp && bp<65535)
+                {
+                    CONFIG.bbPort = bp;
+                    isOptionSet = true;
+                    cout<<CONFIG.bbPort<<endl;
+                }
+                break;
+
+            case 's':
+                sp = atoi(optarg);
+                if(0<sp && sp<65535)
+                {
+                    CONFIG.syncPort = sp;
+                    isOptionSet = true;
+                    cout<<CONFIG.syncPort<<endl;
+                }
+                break;
+
+            case 'f':
+                CONFIG.daemon = false;
+                isOptionSet = true;
+                break;
+
+            case 'd':
+                CONFIG.debug = true;
+                isOptionSet = true;
+                break;
+
+            default:
+                //peers ?? host:port
+                cout<<"Invalid option!"<<endl;
+                break;
+        }
+    }
+
+    if(isOptionSet)
+    {
+        cout << "load config option success!" << endl;
+
+        print_config();
+    }
+
+    return 0;
+}
 
 int getParaFromBuf(char *buf, char *para, char *keyword)
 {
@@ -40,133 +252,30 @@ int getParaFromBuf(char *buf, char *para, char *keyword)
     return SUCCESS;
 }
 
-
-int load_config()
+int file_ope()
 {
-    int fd, parameter;
+    fstream myFile;
 
-    ssize_t bytesRead;
-
-    char buf[256];
-    char para[128];
-
-    memset(buf, 0, sizeof(buf));
-
-    fd = open("bbserv.conf", O_RDONLY);
-
-    if(fd == -1)
+    myFile.open("bbserv.conf", ios::in);//read
+    if(myFile.is_open())
     {
-        cout<<"open conf file error!"<<endl;
-        return ERR;
-    }
-
-    bytesRead = read(fd, buf, sizeof(buf));
-
-    //cout << buf<< endl;
-
-    memset((void *) &CONFIG, 0, sizeof(CONFIG));
-
-    //THMAX
-    CONFIG.thMax = 20;
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,"THMAX="))
-    {
-        parameter = atoi(para);
-
-        if(parameter >0 && parameter < 1024)
+        string line;
+        while(getline(myFile, line))
         {
-            CONFIG.thMax = parameter;
+            cout<<line<<endl;
         }
+        //cout << myFile;
+        myFile.close();
     }
 
-    //BBPORT
-    CONFIG.bbPort = 9000;
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,"BBPORT="))
+    myFile.open("bbserv.conf", ios::app);//write, append
+    if(myFile.is_open())
     {
-        parameter = atoi(para);
-
-        if(parameter >0 && parameter < 65536)
-        {
-            CONFIG.bbPort = parameter;
-        }
+        myFile << "Hello\n";
+        myFile.close();
     }
 
-
-    //SYNCPORT
-    CONFIG.syncPort = 10000;
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,"SYNCPORT="))
-    {
-        parameter = atoi(para);
-
-        if(parameter >0 && parameter < 65536)
-        {
-            CONFIG.syncPort = parameter;
-        }
-    }
-
-    //BBFILE --- mandatory
-    strcpy(CONFIG.bbFile, "");
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,"BBFILE="))
-    {
-        strcpy(CONFIG.bbFile, para);
-    }
-
-    //PEERS
-    strcpy(CONFIG.peers, "");
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,"PEERS="))
-    {
-        strcpy(CONFIG.peers, para);
-    }
-
-    //DAEMON
-    CONFIG.daemon = true;
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS != getParaFromBuf((char *)buf, (char *)para,"DAEMON="))
-    {
-        CONFIG.daemon = false;
-    }
-
-    //DEBUG
-    CONFIG.debug = false;
-
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,"DEBUG="))
-    {
-        if(*para == 'D')
-        {
-            CONFIG.debug = true;
-        }
-    }
-
-
-    //CONFIG.maxConnections = CONFIG.thMax;
-
-    cout << "load config success!" << endl;
-
-    if (CONFIG.debug)
-    {
-        cout << "THMAX = " << CONFIG.thMax << endl << "BBPORT = " << CONFIG.bbPort << endl << "SYNCPORT = " << CONFIG.bbPort << endl;
-        cout << "BBFILE = " << CONFIG.bbFile << endl << "PEERS = " << CONFIG.peers << endl;
-        cout << "DAEMON = " << CONFIG.daemon << endl << "DEBUG = " << CONFIG.debug << endl;
-    }
-
-    return SUCCESS;
+    return 1;
 }
+
 

@@ -1,6 +1,6 @@
 OBJS = main.o config.o connection.o queue.o
 CC = g++
-FLAGS = -g -c
+FLAGS = -g -Wno-literal-suffix -c
 
 all: bbserv
 
