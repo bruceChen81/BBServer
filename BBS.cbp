@@ -32,11 +32,15 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Unit filename="Makefile" />
+		<Unit filename="bbserv.conf" />
 		<Unit filename="common.h" />
 		<Unit filename="config.cpp" />
 		<Unit filename="config.h" />
 		<Unit filename="connection.cpp" />
 		<Unit filename="connection.h" />
+		<Unit filename="list.cpp" />
+		<Unit filename="list.h" />
 		<Unit filename="main.cpp" />
 		<Unit filename="queue.cpp" />
 		<Unit filename="queue.h" />

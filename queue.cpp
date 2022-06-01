@@ -1,9 +1,8 @@
 #include "queue.h"
 
 
-STAILQ_HEAD(clientEvHead, _clientEvent);
-
-struct clientEvHead clientEvQueue;
+STAILQ_HEAD(clientEvHead, _clientEvent) clientEvQueue
+        = STAILQ_HEAD_INITIALIZER(clientEvQueue);
 
 pthread_mutex_t clientEvQueueLock;
 

@@ -6,9 +6,16 @@
 #include <sys/queue.h>
 #include <pthread.h>
 
+typedef enum clientEv
+{
+    EV_ACCEPT = 1,
+    EV_RECV
+
+}clientEv;
 
 typedef struct _clientEvent
 {
+    clientEv event;
     int fd;
     sockaddr_in clientAddr;
     STAILQ_ENTRY(_clientEvent) p;

@@ -8,12 +8,15 @@
 #include "config.h"
 #include "queue.h"
 #include "connection.h"
+#include "list.h"
 
 using std::cout;
 using std::endl;
 
 
 int connections[MAX_CONN];
+
+pthread_mutex_t clientConnLock;
 
 
 int create_tcp_server_sock()
@@ -78,11 +81,7 @@ int start_conn_service()
         conn_set_fdset(&read_fd_set);
 
         //Invoke select()
-        //cout << "Invoke select to listen for incoming events" << endl;
-
         ret = select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL);
-
-        //cout << "Select returned with " << ret << endl;
 
         if (ret < 0)
         {
@@ -90,25 +89,17 @@ int start_conn_service()
             continue;
         }
 
-
         //check if the fd with event is the sever fd, accept new connection
         if(FD_ISSET(server_fd, &read_fd_set))
         {
-            new_fd = accept(server_fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
+            //en client event queue, to accept
+            clientEvent *pClientEv = new clientEvent;
 
-            if(new_fd >= 0)
-            {
-                cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
-                //add new fd to fd set
-                conn_add(new_fd);
+            pClientEv->event = EV_ACCEPT;
+            pClientEv->fd = server_fd;
+            //pClientEv->clientAddr = *pClientAddr;
 
-                //send greeting
-                send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0);
-            }
-            else
-            {
-                cout << "Error on accepting!" << endl;
-            }
+            enClientEventQueue(pClientEv);
         }
         else
         {
@@ -119,7 +110,7 @@ int start_conn_service()
     }//while()
 
     // close all sockets
-    conn_close_all();
+    //conn_close_all();
 
     return SUCCESS;
 }
@@ -133,19 +124,20 @@ void conn_check_fd_set(fd_set *pFdSet, sockaddr_in *pClientAddr)
         return;
     }
 
-    for(i=0;i<MAX_CONN;i++)
+    // do not check server fd:connections[0]
+    for(i=1;i<MAX_CONN;i++)
     {
-        // do not check server fd
         if((connections[i] > 0) && FD_ISSET(connections[i], pFdSet))
         {
             clientEvent *pClientEv = new clientEvent;
 
+            pClientEv->event = EV_RECV;
             pClientEv->fd = connections[i];
             pClientEv->clientAddr = *pClientAddr;
 
             enClientEventQueue(pClientEv);
 
-            //std::cout << "enQueue Client fd = "<< pClient->fd << std::endl;
+            //std::cout << "enQueue recv Client fd = "<< connections[i] << std::endl;
         }
     }
 
@@ -157,10 +149,19 @@ void conn_init()
 {
     unsigned int i;
 
+    if (pthread_mutex_init(&clientConnLock, NULL) != 0)
+    {
+        std::cout << "init clientConnLock failed!" << std::endl;
+    }
+
+    pthread_mutex_lock(&clientConnLock);
+
     for (i=0;i<MAX_CONN;i++)
     {
         connections[i] = -1;
     }
+
+    pthread_mutex_unlock(&clientConnLock);
 
     return;
 }
@@ -180,7 +181,6 @@ void conn_set_fdset(fd_set *pFdSet)
         {
             FD_SET(connections[i], pFdSet);
         }
-
     }
 
     return;
@@ -203,6 +203,8 @@ void conn_add(int fd)
         }
     }
 
+    pthread_mutex_lock(&clientConnLock);
+
     if(isExist == false)
     {
         for (i=0;i<MAX_CONN;i++)
@@ -214,6 +216,8 @@ void conn_add(int fd)
             }
         }
     }
+
+    pthread_mutex_unlock(&clientConnLock);
 
     return;
 }
@@ -227,6 +231,8 @@ void conn_del(int fd)
         return;
     }
 
+    pthread_mutex_lock(&clientConnLock);
+
     for (i=0;i<MAX_CONN;i++)
     {
         if(connections[i] == fd)
@@ -238,12 +244,16 @@ void conn_del(int fd)
         }
     }
 
+    pthread_mutex_unlock(&clientConnLock);
+
     return;
 }
 
 void conn_close_all()
 {
     unsigned int i;
+
+    pthread_mutex_lock(&clientConnLock);
 
     for (i=0;i<MAX_CONN;i++)
     {
@@ -253,6 +263,8 @@ void conn_close_all()
             connections[i] = -1;
         }
     }
+
+    pthread_mutex_unlock(&clientConnLock);
 
     return;
 }
