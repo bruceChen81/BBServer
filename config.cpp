@@ -8,7 +8,11 @@
 #include "common.h"
 #include "config.h"
 
-using namespace std;
+using std::cout;
+using std::endl;
+using std::string;
+using std::fstream;
+using std::ios;
 
 sysCfg CONFIG;
 
@@ -19,12 +23,13 @@ int print_config()
             cout << "THMAX: " << CONFIG.thMax << endl << "BBPORT: " << CONFIG.bbPort << endl << "SYNCPORT: " << CONFIG.syncPort << endl;
             cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
             cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
+            cout << "CFGFILE: " << CONFIG.cfgFile << endl;
         }
 
     return 0;
 }
 
-int load_config()
+int load_config(char *pCfgFile)
 {
     int fd;
     unsigned int tmax, bp, sp;
@@ -33,28 +38,47 @@ int load_config()
     ssize_t bytesRead;
 
     char buf[256];
-    char para[128];
+    char arg[128];
+
+    if(!pCfgFile)
+    {
+        return -1;
+    }
 
     memset(buf, 0, sizeof(buf));
+    memset((void *) &CONFIG, 0, sizeof(CONFIG));
 
-    //CHECK(fd = open("bbserv1111.conf", O_RDONLY));
+    //save config file name
+    //strcpy(arg, pCfgFile);
 
-    fd = open("bbserv.conf", O_RDONLY);
+    //set default value
+    CONFIG.thMax = 20;
+    CONFIG.bbPort = 9000;
+    CONFIG.syncPort = 10000;
+    strcpy(CONFIG.bbFile, "");
+    strcpy(CONFIG.peers, "");
+    CONFIG.daemon = true;
+    CONFIG.debug = false;
+    strcpy(CONFIG.cfgFile, pCfgFile);
+    //CONFIG.maxConnections = CONFIG.thMax;
+
+
+    //fd = open("bbserv.conf", O_RDONLY);
+
+    fd = open(CONFIG.cfgFile, O_RDONLY);
 
     CHECK(fd);
 
     bytesRead = read(fd, buf, sizeof(buf));
 
-    memset((void *) &CONFIG, 0, sizeof(CONFIG));
+    CHECK(bytesRead);
 
     //THMAX
-    CONFIG.thMax = 20;
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"THMAX="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"THMAX="))
     {
-        tmax = atoi(para);
+        tmax = atoi(arg);
 
         if(0<tmax && tmax<MAX_THREAD_POOL)
         {
@@ -63,13 +87,11 @@ int load_config()
     }
 
     //BBPORT
-    CONFIG.bbPort = 9000;
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"BBPORT="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBPORT="))
     {
-        bp = atoi(para);
+        bp = atoi(arg);
 
         if(0<bp && bp<65535)
         {
@@ -77,15 +99,12 @@ int load_config()
         }
     }
 
-
     //SYNCPORT
-    CONFIG.syncPort = 10000;
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"SYNCPORT="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"SYNCPORT="))
     {
-        sp = atoi(para);
+        sp = atoi(arg);
 
         if(0<sp && sp<65535)
         {
@@ -94,49 +113,40 @@ int load_config()
     }
 
     //BBFILE --- mandatory
-    strcpy(CONFIG.bbFile, "");
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"BBFILE="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBFILE="))
     {
-        strcpy(CONFIG.bbFile, para);
+        strcpy(CONFIG.bbFile, arg);
     }
 
     //PEERS
-    strcpy(CONFIG.peers, "");
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"PEERS="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"PEERS="))
     {
-        strcpy(CONFIG.peers, para);
+        strcpy(CONFIG.peers, arg);
     }
 
     //DAEMON
-    CONFIG.daemon = true;
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS != getParaFromBuf((char *)buf, (char *)para,(char *)"DAEMON="))
+    if(SUCCESS != getParaFromBuf((char *)buf, (char *)arg,(char *)"DAEMON="))
     {
         CONFIG.daemon = false;
     }
 
     //DEBUG
-    CONFIG.debug = false;
+    memset(arg, 0, sizeof(arg));
 
-    memset(para, 0, sizeof(para));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)para,(char *)"DEBUG="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DEBUG="))
     {
-        if(*para == 'D')
+        if(*arg == 'D')
         {
             CONFIG.debug = true;
         }
     }
 
-    //CONFIG.maxConnections = CONFIG.thMax;
 
     cout << "load config file success!" << endl;
 
@@ -148,77 +158,136 @@ int load_config()
 int load_option(int argc, char **argv)
 {
     int option;
+
+    int bflag = 0, tflag = 0, pflag = 0, sflag = 0, fflag = 0, dflag = 0, cflag = 0, peerflag = 0;
     unsigned int tmax, bp, sp;
 
     bool isOptionSet = false;
+    bool isReloadCfgFile = false;
+
+    sysCfg optionCFG;
+    memset((void *)&optionCFG, 0, sizeof(optionCFG));
 
 //    extern char *optarg;
 //    extern int optind, optopt;
 
-    while ((option = getopt(argc,argv, "b:t:T:p:s:fd")) != -1)
+    while ((option = getopt(argc,argv, "b:c:t:T:p:s:fd")) != -1)
     {
         switch(option)
         {
             case 'b':
-                strcpy(CONFIG.bbFile,optarg);
-                isOptionSet = true;
-                cout<<CONFIG.bbFile<<endl;
+                bflag = 1;
+                strcpy(optionCFG.bbFile,optarg);
+                cout<<optionCFG.bbFile<<endl;
                 break;
 
             case 'T':
             case 't':
+                tflag = 1;
                 tmax = atoi(optarg);
                 if(0<tmax && tmax<MAX_THREAD_POOL)
                 {
-                    CONFIG.thMax = tmax;
-                    isOptionSet = true;
-                    cout<<CONFIG.thMax<<endl;
+                    optionCFG.thMax = tmax;
+                    cout<<optionCFG.thMax<<endl;
                 }
                 break;
 
             case 'p':
+                pflag = 1;
                 bp = atoi(optarg);
                 if(0<bp && bp<65535)
                 {
-                    CONFIG.bbPort = bp;
-                    isOptionSet = true;
-                    cout<<CONFIG.bbPort<<endl;
+                    optionCFG.bbPort = bp;
+                    cout<<optionCFG.bbPort<<endl;
                 }
                 break;
 
             case 's':
+                sflag = 1;
                 sp = atoi(optarg);
                 if(0<sp && sp<65535)
                 {
-                    CONFIG.syncPort = sp;
-                    isOptionSet = true;
-                    cout<<CONFIG.syncPort<<endl;
+                    optionCFG.syncPort = sp;
+                    cout<<optionCFG.syncPort<<endl;
                 }
                 break;
 
             case 'f':
-                CONFIG.daemon = false;
-                isOptionSet = true;
+                fflag = 1;
+                optionCFG.daemon = false;
                 break;
 
             case 'd':
-                CONFIG.debug = true;
-                isOptionSet = true;
+                dflag = 1;
+                optionCFG.debug = true;
+                break;
+
+            case 'c':
+                //change config file name
+                cflag = 1;
+                strcpy(optionCFG.cfgFile,optarg);
+                cout<<optionCFG.cfgFile<<endl;
                 break;
 
             default:
                 //peers ?? host:port
+                //peerflag = 1;
                 cout<<"Invalid option!"<<endl;
                 break;
         }
     }
 
-    if(isOptionSet)
+    //First: process cflag(config file name), reload config file
+    if(cflag)
+    {
+        //reload config file
+        load_config((char *)&optionCFG.cfgFile);
+    }
+
+    //Second: process option argument, overwrite config file arg
+
+    if(bflag)
+    {
+        strcpy(CONFIG.bbFile, optionCFG.bbFile);
+    }
+
+    if(tflag)
+    {
+        CONFIG.thMax = optionCFG.thMax;
+    }
+
+    if(pflag)
+    {
+        CONFIG.bbPort = optionCFG.bbPort;
+    }
+
+    if(sflag)
+    {
+        CONFIG.syncPort = optionCFG.syncPort;
+    }
+
+    if(fflag)
+    {
+        CONFIG.daemon = optionCFG.daemon;
+    }
+
+    if(dflag)
+    {
+        CONFIG.debug = optionCFG.debug;
+    }
+
+    if(peerflag)
+    {
+        strcpy(CONFIG.peers, optionCFG.peers);
+    }
+
+    if(cflag || bflag || tflag || pflag || sflag || fflag || dflag || peerflag)
     {
         cout << "load config option success!" << endl;
 
         print_config();
     }
+
 
     return 0;
 }
@@ -233,7 +302,6 @@ int getParaFromBuf(char *buf, char *para, char *keyword)
     {
         return ERR;
     }
-    //cout << p1 <<endl;
 
     p2 = strstr(p1,"\n");
 
@@ -241,13 +309,11 @@ int getParaFromBuf(char *buf, char *para, char *keyword)
     {
         return ERR;
     }
-    //cout << p2 << endl;
 
     int offset = strlen(keyword);
 
     memcpy(para, p1+offset, p2-(p1+offset));
 
-    //cout<<para<<endl;
 
     return SUCCESS;
 }

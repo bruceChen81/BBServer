@@ -2,13 +2,15 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <string.h>
 
 #include "common.h"
 #include "config.h"
 #include "queue.h"
 #include "connection.h"
 
-using namespace std;
+using std::cout;
+using std::endl;
 
 
 int connections[MAX_CONN];
@@ -48,7 +50,7 @@ int create_tcp_server_sock()
     return fd;
 }
 
-int start_comm_service()
+int start_conn_service()
 {
     int server_fd, new_fd, ret;
 
@@ -62,7 +64,7 @@ int start_comm_service()
     //create server listening socket
     server_fd = create_tcp_server_sock();
 
-    if (ERR == server_fd)
+    if (server_fd < 0)
     {
         return ERR;
     }
@@ -99,6 +101,9 @@ int start_comm_service()
                 cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
                 //add new fd to fd set
                 conn_add(new_fd);
+
+                //send greeting
+                send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0);
             }
             else
             {
@@ -107,7 +112,7 @@ int start_comm_service()
         }
         else
         {
-            //check if the fd with event is a non-server fd, reveive data
+            //check if the fd with event is a non-server fd, then reveive data
             conn_check_fd_set(&read_fd_set, &clientAddr);
         }
 
@@ -119,7 +124,33 @@ int start_comm_service()
     return SUCCESS;
 }
 
+void conn_check_fd_set(fd_set *pFdSet, sockaddr_in *pClientAddr)
+{
+    unsigned int i;
 
+    if(!pFdSet || !pClientAddr)
+    {
+        return;
+    }
+
+    for(i=0;i<MAX_CONN;i++)
+    {
+        // do not check server fd
+        if((connections[i] > 0) && FD_ISSET(connections[i], pFdSet))
+        {
+            clientEvent *pClientEv = new clientEvent;
+
+            pClientEv->fd = connections[i];
+            pClientEv->clientAddr = *pClientAddr;
+
+            enClientEventQueue(pClientEv);
+
+            //std::cout << "enQueue Client fd = "<< pClient->fd << std::endl;
+        }
+    }
+
+    return;
+}
 
 
 void conn_init()
@@ -155,32 +186,7 @@ void conn_set_fdset(fd_set *pFdSet)
     return;
 }
 
-void conn_check_fd_set(fd_set *pFdSet, sockaddr_in *pClientAddr)
-{
-    unsigned int i;
 
-    if(!pFdSet || !pClientAddr)
-    {
-        return;
-    }
-
-    for(i=0;i<MAX_CONN;i++)
-    {
-        if((connections[i] >= 0) && FD_ISSET(connections[i], pFdSet))
-        {
-            client *pClient = new client;
-
-            pClient->fd = connections[i];
-            pClient->clientAddr = *pClientAddr;
-
-            enClientQueue(pClient);
-
-            std::cout << "enQueue Client fd = "<< pClient->fd << std::endl;
-        }
-    }
-
-    return;
-}
 
 void conn_add(int fd)
 {

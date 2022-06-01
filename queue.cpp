@@ -1,73 +1,75 @@
 #include "queue.h"
 
 
-STAILQ_HEAD(clientHead, _client);
+STAILQ_HEAD(clientEvHead, _clientEvent);
 
-struct clientHead clientQueue;
+struct clientEvHead clientEvQueue;
 
-pthread_mutex_t clientQueueLock;
+pthread_mutex_t clientEvQueueLock;
 
-pthread_cond_t cond_clientQueue = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond_clientEvQueue = PTHREAD_COND_INITIALIZER;
 
-int create_client_queue()
+int create_client_event_queue()
 {
-    if (pthread_mutex_init(&clientQueueLock, NULL) != 0)
+    if (pthread_mutex_init(&clientEvQueueLock, NULL) != 0)
     {
-        std::cout << "init clientQueueLock failed!" << std::endl;
+        std::cout << "init clientEvQueueLock failed!" << std::endl;
     }
 
-    STAILQ_INIT(&clientQueue);
+    STAILQ_INIT(&clientEvQueue);
 
-    std::cout << "client connection Queue created!" << std::endl;
+    std::cout << "client event Queue created!" << std::endl;
 
     return 1;
 }
 
 
-void enClientQueue(client *pClient)
+void enClientEventQueue(clientEvent *pClientEv)
 {
-    pthread_mutex_lock(&clientQueueLock);
+    pthread_mutex_lock(&clientEvQueueLock);
 
-    STAILQ_INSERT_TAIL(&clientQueue, pClient, p);
+    STAILQ_INSERT_TAIL(&clientEvQueue, pClientEv, p);
 
-    pthread_cond_signal(&cond_clientQueue);
+    pthread_cond_signal(&cond_clientEvQueue);
 
-    pthread_mutex_unlock(&clientQueueLock);
+    pthread_mutex_unlock(&clientEvQueueLock);
+
+    return;
 }
 
-client *deClientQueue()
+clientEvent *deClientEventQueue()
 {
-    client *p = nullptr;
+    clientEvent *p = nullptr;
 
-    pthread_mutex_lock(&clientQueueLock);
+    pthread_mutex_lock(&clientEvQueueLock);
 
-    pthread_cond_wait(&cond_clientQueue, &clientQueueLock);
+    pthread_cond_wait(&cond_clientEvQueue, &clientEvQueueLock);
 
-    if (STAILQ_EMPTY(&clientQueue))
+    if (STAILQ_EMPTY(&clientEvQueue))
     {
         p = nullptr;
     }
     else
     {
-        p = STAILQ_FIRST(&clientQueue);
+        p = STAILQ_FIRST(&clientEvQueue);
 
-        STAILQ_REMOVE_HEAD(&clientQueue,p);
+        STAILQ_REMOVE_HEAD(&clientEvQueue,p);
     }
 
-    pthread_mutex_unlock(&clientQueueLock);
+    pthread_mutex_unlock(&clientEvQueueLock);
 
     return p;
 }
 
-bool isClientQueueEmpty()
+bool isClientEventQueueEmpty()
 {
     bool ret = false;
 
-    pthread_mutex_lock(&clientQueueLock);
+    pthread_mutex_lock(&clientEvQueueLock);
 
-    ret = STAILQ_EMPTY(&clientQueue);
+    ret = STAILQ_EMPTY(&clientEvQueue);
 
-    pthread_mutex_unlock(&clientQueueLock);
+    pthread_mutex_unlock(&clientEvQueueLock);
 
     return ret;
 }

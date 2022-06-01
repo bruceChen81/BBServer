@@ -7,21 +7,21 @@
 #include <pthread.h>
 
 
-typedef struct _client
+typedef struct _clientEvent
 {
     int fd;
     sockaddr_in clientAddr;
-    STAILQ_ENTRY(_client) p;
+    STAILQ_ENTRY(_clientEvent) p;
 
-}client;
+}clientEvent;
 
 
-int create_client_queue();
+int create_client_event_queue();
 
-void enClientQueue(client *pClient);
+void enClientEventQueue(clientEvent *pClientEv);
 
-client *deClientQueue();
+clientEvent *deClientEventQueue();
 
-bool isClientQueueEmpty();
+bool isClientEventQueueEmpty();
 
 #endif // MYQUEUE_H_INCLUDED

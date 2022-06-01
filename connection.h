@@ -17,5 +17,7 @@ void conn_del(int fd);
 
 void conn_close_all();
 
+int start_conn_service();
+
 
 #endif // CONNECTION_H_INCLUDED
