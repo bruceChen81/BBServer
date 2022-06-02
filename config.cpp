@@ -33,7 +33,6 @@ int load_config(char *pCfgFile)
 {
     int fd;
     unsigned int tmax, bp, sp;
-    unsigned int parameter;
 
     ssize_t bytesRead;
 
@@ -161,9 +160,6 @@ int load_option(int argc, char **argv)
 
     int bflag = 0, tflag = 0, pflag = 0, sflag = 0, fflag = 0, dflag = 0, cflag = 0, peerflag = 0;
     unsigned int tmax, bp, sp;
-
-    bool isOptionSet = false;
-    bool isReloadCfgFile = false;
 
     sysCfg optionCFG;
     memset((void *)&optionCFG, 0, sizeof(optionCFG));

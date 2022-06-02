@@ -25,6 +25,8 @@ int create_client_event_queue()
 
 void enClientEventQueue(clientEvent *pClientEv)
 {
+    std::cout << "enClientEvQueue type:" << pClientEv->event << " fd:" << pClientEv->fd << std::endl;
+
     pthread_mutex_lock(&clientEvQueueLock);
 
     STAILQ_INSERT_TAIL(&clientEvQueue, pClientEv, p);
@@ -53,6 +55,8 @@ clientEvent *deClientEventQueue()
         p = STAILQ_FIRST(&clientEvQueue);
 
         STAILQ_REMOVE_HEAD(&clientEvQueue,p);
+
+        std::cout << "deClientEvQueue type:" << p->event << " fd:" << p->fd << std::endl;
     }
 
     pthread_mutex_unlock(&clientEvQueueLock);

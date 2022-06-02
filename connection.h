@@ -3,13 +3,13 @@
 
 
 
-#define MAX_CONN 100
+#define MAX_CONN 1024
 
 void conn_init();
 
 void conn_set_fdset(fd_set *pFdSet);
 
-void conn_check_fd_set(fd_set *pFdSet, sockaddr_in *pClientAddr);
+void conn_check_fd_set(fd_set *pFdSet);
 
 void conn_add(int fd);
 

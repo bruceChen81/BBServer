@@ -16,61 +16,50 @@ using std::endl;
 
 int connections[MAX_CONN];
 
+fd_set read_fd_set;
+
 pthread_mutex_t clientConnLock;
 
 
 int create_tcp_server_sock()
 {
-    int fd = 0;
+    int fd = -1;
 
     fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if(fd < 0)
-    {
-        cout << "Can not create a socket!" << endl;
-        return ERR;
-    }
+    CHECK_EXIT(fd);
 
     //bind
     sockaddr_in hint;
     hint.sin_family = AF_INET;
     hint.sin_port = htons(CONFIG.bbPort);
     hint.sin_addr.s_addr = INADDR_ANY;
-    //inet_pton(AF_INET, "0.0.0.0", &hint.sin_addr);
 
-    if (bind(fd,(sockaddr *)&hint, sizeof(hint)) < 0)
-    {
-        cout << "Error binding!" << endl;
-        return ERR;
-    }
+    CHECK_EXIT(bind(fd,(sockaddr *)&hint, sizeof(hint)));
 
     //listen
     cout << "Waiting for client!" << endl;
 
     //listen(listeningSock, SOMAXCONN);
-    listen(fd, 5);
+    CHECK_EXIT(listen(fd, MAX_CONN));
 
     return fd;
 }
 
 int start_conn_service()
 {
-    int server_fd, new_fd, ret;
+    int server_fd, ret;
 
-    sockaddr_in clientAddr;
-    socklen_t clientAddrSize = sizeof(clientAddr);
-
-    fd_set read_fd_set;
+    struct timeval tv;
+    tv.tv_sec = 1; //1 second
+    tv.tv_usec = 0;
 
     conn_init();
 
     //create server listening socket
     server_fd = create_tcp_server_sock();
 
-    if (server_fd < 0)
-    {
-        return ERR;
-    }
+    CHECK_EXIT(server_fd);
 
     conn_add(server_fd);
 
@@ -81,30 +70,27 @@ int start_conn_service()
         conn_set_fdset(&read_fd_set);
 
         //Invoke select()
-        ret = select(FD_SETSIZE, &read_fd_set, NULL, NULL, NULL);
+        ret = select(FD_SETSIZE, &read_fd_set, NULL, NULL, &tv);
 
-        if (ret < 0)
+        CHECK(ret);
+
+        if (ret >= 0)
         {
-            cout << "select return error!"<<endl;
-            continue;
-        }
+            if(FD_ISSET(server_fd, &read_fd_set))//check if the fd with event is the sever fd, accept new connection
+            {
+                //en client event queue, to accept
+                clientEvent *pClientEv = new clientEvent;
 
-        //check if the fd with event is the sever fd, accept new connection
-        if(FD_ISSET(server_fd, &read_fd_set))
-        {
-            //en client event queue, to accept
-            clientEvent *pClientEv = new clientEvent;
+                pClientEv->event = EV_ACCEPT;
+                pClientEv->fd = server_fd;
 
-            pClientEv->event = EV_ACCEPT;
-            pClientEv->fd = server_fd;
-            //pClientEv->clientAddr = *pClientAddr;
-
-            enClientEventQueue(pClientEv);
-        }
-        else
-        {
-            //check if the fd with event is a non-server fd, then reveive data
-            conn_check_fd_set(&read_fd_set, &clientAddr);
+                enClientEventQueue(pClientEv);
+            }
+            else
+            {
+                //check if the fd with event is a non-server fd, then reveive data
+                conn_check_fd_set(&read_fd_set);
+            }
         }
 
     }//while()
@@ -115,11 +101,11 @@ int start_conn_service()
     return SUCCESS;
 }
 
-void conn_check_fd_set(fd_set *pFdSet, sockaddr_in *pClientAddr)
+void conn_check_fd_set(fd_set *pFdSet)
 {
     unsigned int i;
 
-    if(!pFdSet || !pClientAddr)
+    if(!pFdSet)
     {
         return;
     }
@@ -131,13 +117,12 @@ void conn_check_fd_set(fd_set *pFdSet, sockaddr_in *pClientAddr)
         {
             clientEvent *pClientEv = new clientEvent;
 
+            memset(pClientEv, 0, sizeof(clientEv));
+
             pClientEv->event = EV_RECV;
             pClientEv->fd = connections[i];
-            pClientEv->clientAddr = *pClientAddr;
 
             enClientEventQueue(pClientEv);
-
-            //std::cout << "enQueue recv Client fd = "<< connections[i] << std::endl;
         }
     }
 
@@ -163,6 +148,8 @@ void conn_init()
 
     pthread_mutex_unlock(&clientConnLock);
 
+    FD_ZERO(&read_fd_set);
+
     return;
 }
 
@@ -186,47 +173,29 @@ void conn_set_fdset(fd_set *pFdSet)
     return;
 }
 
+bool conn_is_exist(int fd)
+{
+    if(fd < 0)
+    {
+        return false;
+    }
 
+    for (int i=0;i<MAX_CONN;i++)
+    {
+        if(connections[i] == fd)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 void conn_add(int fd)
 {
     unsigned int i;
 
-    bool isExist = false;
-
-    for (i=0;i<MAX_CONN;i++)
-    {
-        if(connections[i] == fd)
-        {
-            isExist = true;
-            return;
-        }
-    }
-
-    pthread_mutex_lock(&clientConnLock);
-
-    if(isExist == false)
-    {
-        for (i=0;i<MAX_CONN;i++)
-        {
-            if(connections[i] < 0)
-            {
-                connections[i] = fd;
-                break;
-            }
-        }
-    }
-
-    pthread_mutex_unlock(&clientConnLock);
-
-    return;
-}
-
-void conn_del(int fd)
-{
-    unsigned int i;
-
-    if(fd < 0)
+    if(conn_is_exist(fd))
     {
         return;
     }
@@ -235,10 +204,41 @@ void conn_del(int fd)
 
     for (i=0;i<MAX_CONN;i++)
     {
+        if(connections[i] < 0)
+        {
+            connections[i] = fd;
+
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&clientConnLock);
+
+    FD_SET(fd, &read_fd_set);
+
+    return;
+}
+
+void conn_del(int fd)
+{
+    unsigned int i;
+
+    if(!conn_is_exist(fd))
+    {
+        return;
+    }
+
+    CHECK(close(fd));
+
+    FD_CLR(fd, &read_fd_set);
+
+    pthread_mutex_lock(&clientConnLock);
+
+    for (i=0;i<MAX_CONN;i++)
+    {
         if(connections[i] == fd)
         {
             connections[i] = -1;
-            close(fd);
 
             break;
         }
@@ -253,13 +253,15 @@ void conn_close_all()
 {
     unsigned int i;
 
+    FD_ZERO(&read_fd_set);
+
     pthread_mutex_lock(&clientConnLock);
 
     for (i=0;i<MAX_CONN;i++)
     {
         if(connections[i] > 0)
         {
-            close(connections[i]);
+            CHECK(close(connections[i]));
             connections[i] = -1;
         }
     }

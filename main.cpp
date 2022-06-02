@@ -58,12 +58,16 @@ void *handle_client_event(void *arg)
 {
     char *uargv = nullptr;
 
-    int fd, new_fd, bytesRecved = -1;
+    int fd, new_fd, bytesRecved, bytesSend;
 
     sockaddr_in clientAddr;
     socklen_t clientAddrSize = sizeof(clientAddr);
 
     clientEvent *pClientEv = nullptr;
+
+    clientInfo *pClient = nullptr;
+
+    clientEv evType;
 
     char buf[1024];
 
@@ -71,6 +75,9 @@ void *handle_client_event(void *arg)
 
     while(true)
     {
+        pClientEv = nullptr;
+        pClient = nullptr;
+
         pClientEv = deClientEventQueue();
 
         if(nullptr == pClientEv)
@@ -80,9 +87,11 @@ void *handle_client_event(void *arg)
 
         //cout << "deQueue Client fd = " << pClient->fd << endl;
 
+        evType = pClientEv->event;
         fd = pClientEv->fd;
+        delete pClientEv;
 
-        if(pClientEv->event == EV_ACCEPT)
+        if(evType == EV_ACCEPT)
         {
             new_fd = accept(fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
 
@@ -119,35 +128,46 @@ void *handle_client_event(void *arg)
                 cout << "Error on accepting!" << endl;
             }
         }
-        else if(pClientEv->event == EV_RECV)
+        else if(evType == EV_RECV)
         {
+            pClient = client_list_search(fd);
+
+            if(!pClient)
+            {
+                //conn_del(fd);
+                cout << "client has been deleted! fd:" << fd << endl;
+                continue;
+            }
+
             bytesRecved = recv(fd, buf, sizeof(buf), 0);
 
             if (bytesRecved == -1)
             {
                 cout << "Error in recv()" << endl;
-                //continue;
+                continue;
             }
-            else if (bytesRecved == 0)
-            {
-                cout << "Client:" << inet_ntoa(pClientEv->clientAddr.sin_addr) << " disconnected!" << endl;
 
+            if (bytesRecved == 0) //client disconnected, delete
+            {
                 conn_del(fd);
 
-                //continue;
+                cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+
+                client_list_del(pClient);
             }
             else if (bytesRecved > 0)
             {
-                cout << "Msg recved from " << inet_ntoa(pClientEv->clientAddr.sin_addr) <<":" << ntohs(pClientEv->clientAddr.sin_port)
-                    <<" [" << bytesRecved << " Bytes]: " << string(buf, 0, bytesRecved)<< endl;
+                //cout << "Msg recved from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: " << string(buf, 0, bytesRecved)<< endl;
 
                 //echo
-                send(fd, buf, bytesRecved+1, 0);
+                //send(fd, buf, bytesRecved+1, 0);
+                bytesSend = send(fd,MSG_GREETING,strlen(MSG_GREETING),0);
+                CHECK(bytesSend);
             }
 
         }
 
-        delete pClientEv;
+
     }
 
     return uargv;

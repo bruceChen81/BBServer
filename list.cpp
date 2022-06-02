@@ -164,3 +164,27 @@ int client_list_clear()
 
     return 0;
 }
+
+clientInfo *client_list_search(int fd)
+{
+    clientInfo *np;
+
+    LIST_FOREACH(np, &clientList, p)
+    {
+        if(np->fd == fd)
+        {
+            return np;
+        }
+    }
+
+    return nullptr;
+}
+
+
+
+
+
+
+
+
+

@@ -23,4 +23,6 @@ int client_list_del(clientInfo *pClientInfo);
 
 int client_list_clear();
 
+clientInfo *client_list_search(int fd);
+
 #endif // LIST_H_INCLUDED
