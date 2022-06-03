@@ -6,6 +6,7 @@
 
 
 #include <iostream>
+#include <fstream>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -27,17 +28,18 @@
 using std::cout;
 using std::endl;
 using std::string;
+using std::fstream;
 //using std::string::npos;
 using std::cin;
 
 
-int process_msg(clientInfo *pClient, char *buf, int length)
+int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
-    std::size_t pos1, pos2;
+    std::size_t pos1;
 
     string arg;
     string arg1, arg2;
-    string response;
+    //string response;
 
     string msg = string(buf,length);
 
@@ -47,45 +49,108 @@ int process_msg(clientInfo *pClient, char *buf, int length)
 
     pos1 = msg.find(" ");
 
-    if(pos1 != string::npos)
+    if(pos1 == string::npos)
     {
-//        cout << "pos1:" << pos1 <<endl;
-//        cout << "size:" << msg.size()<<endl;
-
-        arg1 = msg.substr(0, pos1);
-        arg2 = msg.substr(pos1+1, msg.size()-pos1-2); //delete /n in the end
-
-        if(!arg1.empty())
+        //only QUIT command has no space
+        if((msg.size()== 6) && (0 == msg.compare(0,4,"QUIT")))
         {
-            cout << "arg1:" << arg1 <<endl;
+            response.append("4.0 BYE");
+
+            //disconnect the client
+            //conn_del(pClient->fd);
+            //client_list_del(pClient);
         }
 
-        if(!arg2.empty())
-        {
-            cout << "arg2:" <<arg2 <<endl;
-        }
+        return 0;
+    }
 
-        if(0 == arg1.compare(string("USER")))
-        {
-            cout << "USER" << endl;
 
-            strcpy(pClient->name, arg2.c_str());
+    arg1 = msg.substr(0, pos1);
+    arg2 = msg.substr(pos1+1, msg.size()-pos1-2); //delete \n in the end
 
-            cout << "add client name: " << pClient->name << endl;
-        }
+    if(arg1.empty() || arg2.empty())
+    {
+        response.append("ERROR COMMAND");
+        cout << "error command received!" << endl;
+
+        return 0;
+    }
+
+    cout << "arg1:" << arg1 <<" arg2:" <<arg2 <<endl;
+
+
+
+    if(0 == arg1.compare(string("USER")))
+    {
+        //USER name
+        //1.0 HELLO name text
+        //1.2 ERROR USER text
 
         if((arg2.find("/") != string::npos) || (arg2.find(" ") != string::npos))
         {
             cout << "ERROR USER" << endl;
             response.append("1.2 ERROR USER");
         }
+        else
+        {
+            cout << "USER" << endl;
+            response.append("1.0 HELLO ");
+            response.append(arg2);
+
+            strcpy(pClient->name, arg2.c_str());
+            //client_list_save_name(fd, arg2.c_str());
+
+            cout << "add client name: " << pClient->name << endl;
+        }
+    }
+    else if(0 == arg1.compare(string("READ")))
+    {
+        //READ message-number
+        //2.0 MESSAGE message-number poster/message
+        //2.1 UNKNOWN message-number text
+        //2.2 ERROR READ text
+
+
+
+    }
+    else if(0 == arg1.compare(string("WRITE")))
+    {
+        //WRITE message
+        //save:message-number/poster/message
+        //3.0 WROTE message-number
+        //3.2 ERROR WRITE text
+
+        fstream myFile;
+        string msgNumber;
+
+        myFile.open(CONFIG.bbFile, std::ios::app);//write, append
+        if(myFile.is_open())
+        {
+            myFile <<"001 "<< arg2 << endl;
+            myFile.close();
+
+            response.append("3.0 WROTE 001");
+        }
+    }
+    else if(0 == arg1.compare(string("REPLACE")))
+    {
+        //REPLACE message-number/message
+        //3.1 UNKNOWN message-number
+
+    }
+    else if(0 == arg1.compare(string("QUIT")))
+    {
+        //QUIT text
+        //4.0 BYE text
+
+        response.append("4.0 BYE");
+    }
+    else
+    {
+        response.append("ERROR COMMAND");
     }
 
     return 0;
-
-
-    //USER
-
 }
 
 
@@ -219,7 +284,14 @@ void *handle_client_event(void *arg)
             {
                 //cout << "Msg recved from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: " << string(buf, 0, bytesRecved)<< endl;
 
-                process_msg(pClient,buf,bytesRecved);
+                string response;
+
+                response.clear();
+
+                process_msg(pClient,buf,bytesRecved, response);
+                response.append("\n");
+
+                cout << "response:" << response << endl;
 
 //                char *str = "haha";
 ////
@@ -235,7 +307,8 @@ void *handle_client_event(void *arg)
 
                 //echo
                 //send(fd, buf, bytesRecved+1, 0);
-                bytesSend = send(fd,MSG_GREETING,strlen(MSG_GREETING),0);
+                //bytesSend = send(fd,MSG_GREETING,strlen(MSG_GREETING),0);
+                bytesSend = send(fd,response.c_str(),response.size(),0);
                 CHECK(bytesSend);
             }
 
