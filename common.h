@@ -26,6 +26,7 @@ int create_thread_pool();
 
 void *handle_client(void *arg);
 
+//int process_msg(char *buf, int length);
 
 
 #endif // COMMON_H_INCLUDED

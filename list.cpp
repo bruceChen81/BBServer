@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unistd.h>
+#include <string.h>
 
 using std::cout;
 using std::endl;
@@ -165,7 +166,7 @@ int client_list_clear()
     return 0;
 }
 
-clientInfo *client_list_search(int fd)
+clientInfo *client_list_find(int fd)
 {
     clientInfo *np;
 
@@ -178,6 +179,28 @@ clientInfo *client_list_search(int fd)
     }
 
     return nullptr;
+}
+
+int client_list_save_name(int fd, char *str)
+{
+    clientInfo *np;
+    int ret = -1;
+
+    pthread_mutex_lock(&clientListLock);
+
+    LIST_FOREACH(np, &clientList, p)
+    {
+        if(np->fd == fd)
+        {
+            strcpy(np->name, str);
+            ret = 0;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&clientListLock);
+
+    return ret;
+
 }
 
 

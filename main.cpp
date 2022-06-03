@@ -27,6 +27,66 @@
 using std::cout;
 using std::endl;
 using std::string;
+//using std::string::npos;
+using std::cin;
+
+
+int process_msg(clientInfo *pClient, char *buf, int length)
+{
+    std::size_t pos1, pos2;
+
+    string arg;
+    string arg1, arg2;
+    string response;
+
+    string msg = string(buf,length);
+
+    cout << "Msg: "<< msg << endl;
+
+    //COMMANDS: USER, READ, WRITE, REPLACE, QUIT
+
+    pos1 = msg.find(" ");
+
+    if(pos1 != string::npos)
+    {
+//        cout << "pos1:" << pos1 <<endl;
+//        cout << "size:" << msg.size()<<endl;
+
+        arg1 = msg.substr(0, pos1);
+        arg2 = msg.substr(pos1+1, msg.size()-pos1-2); //delete /n in the end
+
+        if(!arg1.empty())
+        {
+            cout << "arg1:" << arg1 <<endl;
+        }
+
+        if(!arg2.empty())
+        {
+            cout << "arg2:" <<arg2 <<endl;
+        }
+
+        if(0 == arg1.compare(string("USER")))
+        {
+            cout << "USER" << endl;
+
+            strcpy(pClient->name, arg2.c_str());
+
+            cout << "add client name: " << pClient->name << endl;
+        }
+
+        if((arg2.find("/") != string::npos) || (arg2.find(" ") != string::npos))
+        {
+            cout << "ERROR USER" << endl;
+            response.append("1.2 ERROR USER");
+        }
+    }
+
+    return 0;
+
+
+    //USER
+
+}
 
 
 int main(int argc, char *argv[])
@@ -53,6 +113,8 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+
 
 void *handle_client_event(void *arg)
 {
@@ -111,6 +173,8 @@ void *handle_client_event(void *arg)
 
                     strcpy(pClient->ip, inet_ntoa(clientAddr.sin_addr));
 
+                    //pClient->ip = string(inet_ntoa(clientAddr.sin_addr));
+
                     pClient->port = ntohs(clientAddr.sin_port);
 
                     client_list_add(pClient);
@@ -130,7 +194,7 @@ void *handle_client_event(void *arg)
         }
         else if(evType == EV_RECV)
         {
-            pClient = client_list_search(fd);
+            pClient = client_list_find(fd);
 
             if(!pClient)
             {
@@ -141,11 +205,7 @@ void *handle_client_event(void *arg)
 
             bytesRecved = recv(fd, buf, sizeof(buf), 0);
 
-            if (bytesRecved == -1)
-            {
-                cout << "Error in recv()" << endl;
-                continue;
-            }
+            CHECK(bytesRecved);
 
             if (bytesRecved == 0) //client disconnected, delete
             {
@@ -158,6 +218,20 @@ void *handle_client_event(void *arg)
             else if (bytesRecved > 0)
             {
                 //cout << "Msg recved from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: " << string(buf, 0, bytesRecved)<< endl;
+
+                process_msg(pClient,buf,bytesRecved);
+
+//                char *str = "haha";
+////
+//                client_list_save_name(fd, str);
+//
+//                pClient = client_list_find(fd);
+//
+//
+//
+//                //pClient->name = string("haha");
+//
+//                cout << "add client name: " << pClient->name <<endl;
 
                 //echo
                 //send(fd, buf, bytesRecved+1, 0);
@@ -172,6 +246,7 @@ void *handle_client_event(void *arg)
 
     return uargv;
 }
+
 
 int create_thread_pool()
 {
