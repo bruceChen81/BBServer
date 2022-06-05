@@ -18,6 +18,8 @@
 #include <sys/queue.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <time.h>
+#include <climits>
 
 #include "common.h"
 #include "config.h"
@@ -55,10 +57,6 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         if((msg.size()== 6) && (0 == msg.compare(0,4,"QUIT")))
         {
             response.append("4.0 BYE");
-
-            //disconnect the client
-            //conn_del(pClient->fd);
-            //client_list_del(pClient);
         }
 
         return 0;
@@ -97,8 +95,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             response.append("1.0 HELLO ");
             response.append(arg2);
 
-            strcpy(pClient->name, arg2.c_str());
-            //client_list_save_name(fd, arg2.c_str());
+            //strcpy(pClient->name, arg2.c_str());
+            client_list_save_name(pClient->fd, arg2.c_str());
 
             cout << "add client name: " << pClient->name << endl;
         }
@@ -121,15 +119,36 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         //3.2 ERROR WRITE text
 
         fstream myFile;
-        string msgNumber;
+        string msgSave;
+        string username;
+
+        if(strlen(pClient->name) != 0)
+        {
+            username = string(pClient->name, strlen(pClient->name)-1);
+        }
+        else
+        {
+            username.append("nobody");
+        }
+
+        int msg_number = client_get_msg_number();
+
+        msgSave.append(std::to_string(msg_number));
+        msgSave += "/";
+        msgSave += username;
+        msgSave += "/";
+        msgSave += arg2;
+
+        cout <<"MSG save:"<< msgSave << endl;
 
         myFile.open(CONFIG.bbFile, std::ios::app);//write, append
         if(myFile.is_open())
         {
-            myFile <<"001 "<< arg2 << endl;
+            myFile << msgSave << endl;
             myFile.close();
 
-            response.append("3.0 WROTE 001");
+            response.append("3.0 WROTE ");
+            response.append(std::to_string(msg_number));
         }
     }
     else if(0 == arg1.compare(string("REPLACE")))
@@ -163,7 +182,7 @@ int main(int argc, char *argv[])
     //check if bbfile is set
     if(!strlen(CONFIG.bbFile))
     {
-        cout << "BBFILE name is not configured, please set by config file or command line by -b !!!"<< endl;
+        cout << "BBFILE name is not configured, please set by config file or command line -b !!!"<< endl;
         exit(-1);
     }
 
@@ -289,32 +308,22 @@ void *handle_client_event(void *arg)
                 response.clear();
 
                 process_msg(pClient,buf,bytesRecved, response);
+
                 response.append("\n");
 
                 cout << "response:" << response << endl;
 
-//                char *str = "haha";
-////
-//                client_list_save_name(fd, str);
-//
-//                pClient = client_list_find(fd);
-//
-//
-//
-//                //pClient->name = string("haha");
-//
-//                cout << "add client name: " << pClient->name <<endl;
-
-                //echo
-                //send(fd, buf, bytesRecved+1, 0);
-                //bytesSend = send(fd,MSG_GREETING,strlen(MSG_GREETING),0);
                 bytesSend = send(fd,response.c_str(),response.size(),0);
                 CHECK(bytesSend);
+
+                // if QUIT cmd, disconnet the client
+                if(0 == response.compare(0, response.size()-2, "4.0 BYE"))
+                {
+                    //conn_del(pClient->fd);
+                    //client_list_del(pClient);
+                }
             }
-
         }
-
-
     }
 
     return uargv;

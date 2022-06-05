@@ -1,16 +1,22 @@
 #include <iostream>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
+#include <climits>
 
 using std::cout;
 using std::endl;
 
 #include "list.h"
 
+int msgNumber = 0;
+
 LIST_HEAD(clientInfoHead, _clientInfo) clientList
         = LIST_HEAD_INITIALIZER(clientList);
 
 pthread_mutex_t clientListLock;
+
+pthread_mutex_t clientMsgNoLock;
 
 int test_list()
 {
@@ -105,6 +111,8 @@ int create_client_list()
         std::cout << "init clientListLock failed!" << std::endl;
     }
 
+    pthread_mutex_init(&clientMsgNoLock, NULL);
+
     LIST_INIT(&clientList);
 
     std::cout << "client list created!" << std::endl;
@@ -181,7 +189,7 @@ clientInfo *client_list_find(int fd)
     return nullptr;
 }
 
-int client_list_save_name(int fd, char *str)
+int client_list_save_name(int fd, const char *str)
 {
     clientInfo *np;
     int ret = -1;
@@ -201,6 +209,36 @@ int client_list_save_name(int fd, char *str)
 
     return ret;
 
+}
+
+int client_get_msg_number()
+{
+    pthread_mutex_lock(&clientMsgNoLock);
+
+    msgNumber++;
+
+    if(msgNumber == INT_MAX)
+    {
+        msgNumber = 1;
+    }
+
+    pthread_mutex_unlock(&clientMsgNoLock);
+
+    return msgNumber;
+}
+
+int get_time()
+{
+    time_t now = time(0);
+
+    tm *ltime = localtime(&now);
+
+    cout << 1900 + ltime->tm_year << endl;
+    cout << 1 + ltime->tm_mon << endl;
+    cout << ltime->tm_mday << endl;
+    cout << ltime->tm_hour << ":" << ltime->tm_min << ":" << ltime->tm_sec<<endl;
+
+    return 0;
 }
 
 

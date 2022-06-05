@@ -314,6 +314,7 @@ int getParaFromBuf(char *buf, char *para, char *keyword)
     return SUCCESS;
 }
 
+
 int file_ope()
 {
     fstream myFile;
