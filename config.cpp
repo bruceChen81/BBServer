@@ -4,6 +4,8 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
+#include <climits>
 
 #include "common.h"
 #include "config.h"
@@ -15,6 +17,12 @@ using std::fstream;
 using std::ios;
 
 sysCfg CONFIG;
+
+int msgNumber = 0;
+
+pthread_mutex_t clientMsgNoLock;
+
+
 
 int print_config()
 {
@@ -340,5 +348,115 @@ int file_ope()
 
     return 1;
 }
+
+int get_last_line(string& lastline)
+{
+    //string filename = "bbfile";
+    fstream myFile;
+
+    myFile.open(CONFIG.bbFile, ios::in);//read
+    if(myFile.is_open())
+    {
+        myFile.seekg(-2, std::ios::end);
+
+        bool keeplooping = true;
+
+        while(keeplooping)
+        {
+            char ch;
+            myFile.get(ch);
+
+            if((int)myFile.tellg()<=1)
+            {
+                myFile.seekg(0);
+                keeplooping = false;
+            }
+            else if(ch == '\n')
+            {
+                keeplooping = false;
+            }
+            else
+            {
+                myFile.seekg(-2, std::ios_base::cur);
+            }
+        }
+
+        //string lastline;
+        getline(myFile, lastline);
+
+        cout<<"last line:"<<lastline<<endl;
+
+        myFile.close();
+    }
+
+    return 0;
+}
+
+int get_new_msg_number(std::string& strNumber)
+{
+    int number;
+
+    pthread_mutex_lock(&clientMsgNoLock);
+
+    msgNumber++;
+
+    if(msgNumber == INT_MAX)
+    {
+        msgNumber = 1;
+    }
+
+    number = msgNumber;
+
+    pthread_mutex_unlock(&clientMsgNoLock);
+
+    strNumber += std::to_string(number);
+
+    return 0;
+}
+
+int get_last_msg_number(std::string& strNumber)
+{
+    return 0;
+}
+
+int load_msg_number()
+{
+    string lastline;
+    string msgNumLast;
+
+    pthread_mutex_init(&clientMsgNoLock, NULL);
+
+    get_last_line(lastline);
+
+    msgNumLast = lastline.substr(0, lastline.find("/"));
+
+    if(msgNumLast.empty())
+    {
+        cout << "load last message number error!" << endl;
+        return -1;
+    }
+
+    msgNumber = stoi(msgNumLast);
+
+    cout << "load message number:" << msgNumber << endl;
+
+    return 0;
+}
+
+int get_time()
+{
+    time_t now = time(0);
+
+    tm *ltime = localtime(&now);
+
+    cout << 1900 + ltime->tm_year << endl;
+    cout << 1 + ltime->tm_mon << endl;
+    cout << ltime->tm_mday << endl;
+    cout << ltime->tm_hour << ":" << ltime->tm_min << ":" << ltime->tm_sec<<endl;
+
+    return 0;
+}
+
+
 
 

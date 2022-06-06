@@ -27,7 +27,13 @@ int load_config(char *pCfgFile);
 
 int load_option(int argc, char **argv);
 
+int load_msg_number();
+
 int getParaFromBuf(char *buf, char *arg, char *keyword);
+
+int get_last_line(std::string& lastline);
+
+int get_new_msg_number(std::string& strNumber);
 
 
 #endif // CONFIG_H_INCLUDED

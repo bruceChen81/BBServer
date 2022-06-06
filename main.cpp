@@ -37,13 +37,20 @@ using std::cin;
 
 int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
-    std::size_t pos1;
+    std::size_t pos1, pos2;
 
     string arg;
     string arg1, arg2;
     //string response;
 
     string msg = string(buf,length);
+
+    string msgSave;
+    string username;
+    string strNumber;
+
+    fstream myFile;
+    string line;
 
     cout << "Msg: "<< msg << endl;
 
@@ -64,7 +71,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
 
     arg1 = msg.substr(0, pos1);
-    arg2 = msg.substr(pos1+1, msg.size()-pos1-2); //delete \n in the end
+    arg2 = msg.substr(pos1+1, msg.size()-pos1-3); //delete \n in the end
 
     if(arg1.empty() || arg2.empty())
     {
@@ -74,7 +81,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         return 0;
     }
 
-    cout << "arg1:" << arg1 <<" arg2:" <<arg2 <<endl;
+    cout << "arg1:" << arg1 << " len:" << arg1.size()<<endl;
+    cout << "arg2:" << arg2 << " len:" << arg2.size()<<endl;
 
 
 
@@ -91,7 +99,6 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         }
         else
         {
-            cout << "USER" << endl;
             response.append("1.0 HELLO ");
             response.append(arg2);
 
@@ -107,9 +114,34 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         //2.0 MESSAGE message-number poster/message
         //2.1 UNKNOWN message-number text
         //2.2 ERROR READ text
-
-
-
+        myFile.open(CONFIG.bbFile, std::ios::in);//read
+        if(myFile.is_open())
+        {
+            while(getline(myFile, line))
+            {
+                pos2 = line.find("/");
+                if(pos2 != std::string::npos)
+                {
+                    if(arg2 == line.substr(0, pos2))
+                    {
+                        response += line;
+                        break;
+                    }
+                }
+            }
+            // msg number no found
+            if(response.empty())
+            {
+                response += "2.1 UNKNOWN ";
+                response += arg2;
+            }
+            //cout << myFile;
+            myFile.close();
+        }
+        else
+        {
+            response += "2.2 ERROR READ";
+        }
     }
     else if(0 == arg1.compare(string("WRITE")))
     {
@@ -118,22 +150,22 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         //3.0 WROTE message-number
         //3.2 ERROR WRITE text
 
-        fstream myFile;
-        string msgSave;
-        string username;
-
         if(strlen(pClient->name) != 0)
         {
-            username = string(pClient->name, strlen(pClient->name)-1);
+            username = string(pClient->name, strlen(pClient->name));
         }
         else
         {
             username.append("nobody");
         }
 
-        int msg_number = client_get_msg_number();
+        cout <<"client name:"<<pClient->name<<endl;
 
-        msgSave.append(std::to_string(msg_number));
+        cout <<"user name:"<<username<<endl;
+
+        get_new_msg_number(strNumber);
+
+        msgSave += strNumber;
         msgSave += "/";
         msgSave += username;
         msgSave += "/";
@@ -148,13 +180,83 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             myFile.close();
 
             response.append("3.0 WROTE ");
-            response.append(std::to_string(msg_number));
+            response.append(strNumber);
         }
     }
     else if(0 == arg1.compare(string("REPLACE")))
     {
         //REPLACE message-number/message
         //3.1 UNKNOWN message-number
+        long posLineStart;
+        string msgSaved,userSaved,numberSaved,msgInput,newLine;
+
+        myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
+        if(myFile.is_open())
+        {
+            while(getline(myFile, line))
+            {
+                posLineStart = myFile.tellg() - (long)line.length() -(long)1;
+
+                cout << "line:"<<line << endl;
+                cout << "Pos:"<<posLineStart << endl;
+
+                pos1 = line.find_first_of("/");
+                pos2 = line.find_last_of("/");
+
+                numberSaved = line.substr(0, line.find("/"));
+                userSaved = line.substr(pos1+1, pos2-pos1-1);
+                msgSaved = line.substr(pos2 +1);
+
+                msgInput = arg2.substr(arg2.find("/")+1);
+
+                cout << "numberSaved:"<<numberSaved<<endl;
+                cout << "msgSaved:"<<msgSaved<<endl;
+                cout << "userSaved:"<<userSaved<<endl;
+                cout << "msgInput:"<<msgInput<<endl;
+
+
+                //compare message-number
+                if(arg2.substr(0, arg2.find("/")) == line.substr(0, line.find("/")))
+                {
+                    //cout << "Pos3:"<<std::ios_base::cur << endl;
+
+                    newLine = line.substr(0, pos2+1);
+                    newLine += msgInput;
+
+                    cout << "new line:" << newLine <<endl;
+
+                    //replace
+                    myFile.seekp(posLineStart);
+
+                    //myFile.write("",line.length());
+
+                    myFile.seekp(posLineStart);
+
+                    myFile << newLine;
+
+                    if(msgSave.length() > msgInput.length())
+                    {
+
+                    }
+
+                    response.append("3.3 REPLACED ");
+                    response.append(arg2);
+
+                    break;
+                }
+
+            }
+
+            myFile.close();
+
+            if(response.empty())
+            {
+                response.append("3.1 UNKNOWN ");
+                response.append(arg2);
+            }
+
+
+        }
 
     }
     else if(0 == arg1.compare(string("QUIT")))
@@ -186,11 +288,19 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    load_msg_number();
+
     create_client_list();
 
     create_client_event_queue();
 
     create_thread_pool();
+
+    {
+        string lastline;
+
+        get_last_line(lastline);
+    }
 
     start_conn_service();
 

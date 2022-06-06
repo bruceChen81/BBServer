@@ -31,6 +31,5 @@ clientInfo *client_list_find(int fd);
 
 int client_list_save_name(int fd, const char *str);
 
-int client_get_msg_number();
 
 #endif // LIST_H_INCLUDED
