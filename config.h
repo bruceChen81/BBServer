@@ -35,5 +35,11 @@ int get_last_line(std::string& lastline);
 
 int get_new_msg_number(std::string& strNumber);
 
+int get_msg_number_byline(std::string& strNumber, std::string& line);
+
+int get_msg_username_byline(std::string& user, std::string& line);
+
+int get_msg_body_byline(std::string& msg, std::string& line);
+
 
 #endif // CONFIG_H_INCLUDED

@@ -31,4 +31,30 @@ clientEvent *deClientEventQueue();
 
 bool isClientEventQueueEmpty();
 
+
+
+typedef enum msgSaveEv
+{
+    MSG_SAVE_REPLACE = 1,
+    MSG_SAVE_WRITE
+
+}msgSaveEv;
+
+typedef struct _msgSaveEvent
+{
+    msgSaveEv event;
+    std::string msg;
+
+    STAILQ_ENTRY(_msgSaveEvent) p;
+
+}msgSaveEvent;
+
+int create_msg_save_event_queue();
+
+void enMsgSaveEventQueue(msgSaveEvent *pMsgSaveEv);
+
+msgSaveEvent *deMsgSaveEventQueue();
+
+bool isMsgSaveEventQueueEmpty();
+
 #endif // MYQUEUE_H_INCLUDED

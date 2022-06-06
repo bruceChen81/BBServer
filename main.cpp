@@ -150,6 +150,9 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         //3.0 WROTE message-number
         //3.2 ERROR WRITE text
 
+        msgSaveEvent *pMsgSaveEv = new msgSaveEvent;
+
+
         if(strlen(pClient->name) != 0)
         {
             username = string(pClient->name, strlen(pClient->name));
@@ -173,6 +176,15 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
         cout <<"MSG save:"<< msgSave << endl;
 
+        response.append("3.0 WROTE ");
+        response.append(strNumber);
+
+        pMsgSaveEv->event = MSG_SAVE_WRITE;
+        pMsgSaveEv->msg = msgSave;
+
+        enMsgSaveEventQueue(pMsgSaveEv);
+
+        /*
         myFile.open(CONFIG.bbFile, std::ios::app);//write, append
         if(myFile.is_open())
         {
@@ -182,6 +194,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             response.append("3.0 WROTE ");
             response.append(strNumber);
         }
+ */
     }
     else if(0 == arg1.compare(string("REPLACE")))
     {
@@ -203,9 +216,13 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                 pos1 = line.find_first_of("/");
                 pos2 = line.find_last_of("/");
 
-                numberSaved = line.substr(0, line.find("/"));
-                userSaved = line.substr(pos1+1, pos2-pos1-1);
-                msgSaved = line.substr(pos2 +1);
+                get_msg_number_byline(numberSaved,line);
+                get_msg_username_byline(userSaved, line);
+                get_msg_body_byline(msgSaved, line);
+
+//                numberSaved = line.substr(0, line.find("/"));
+//                userSaved = line.substr(pos1+1, pos2-pos1-1);
+//                msgSaved = line.substr(pos2 +1);
 
                 msgInput = arg2.substr(arg2.find("/")+1);
 
@@ -220,7 +237,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                 {
                     //cout << "Pos3:"<<std::ios_base::cur << endl;
 
-                    newLine = line.substr(0, pos2+1);
+                    newLine = line.substr(0, line.find_last_of("/")+1); // include '/'
                     newLine += msgInput;
 
                     cout << "new line:" << newLine <<endl;
@@ -234,8 +251,9 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
                     myFile << newLine;
 
-                    if(msgSave.length() > msgInput.length())
+                    if(msgSaved.length() > msgInput.length())
                     {
+                        //copy entire file to another file, replace the line meanwhile
 
                     }
 
@@ -296,11 +314,13 @@ int main(int argc, char *argv[])
 
     create_thread_pool();
 
-    {
-        string lastline;
+    create_msg_save_thread();
 
-        get_last_line(lastline);
-    }
+//    {
+//        string lastline;
+//
+//        get_last_line(lastline);
+//    }
 
     start_conn_service();
 
@@ -439,6 +459,49 @@ void *handle_client_event(void *arg)
     return uargv;
 }
 
+void *handle_msg_save_event(void *arg)
+{
+    char *uargv = nullptr;
+
+    msgSaveEvent *pMsgSaveEv;
+
+    fstream myFile;
+
+    while(true)
+    {
+        pMsgSaveEv = nullptr;
+
+        pMsgSaveEv = deMsgSaveEventQueue();
+
+        cout << "handle_msg_save_event: "<<pMsgSaveEv->msg << endl;
+
+        if(nullptr == pMsgSaveEv)
+        {
+            continue;
+        }
+
+        if(pMsgSaveEv->event == MSG_SAVE_WRITE)
+        {
+            myFile.open(CONFIG.bbFile, std::ios::app);//write, append
+
+            if(myFile.is_open())
+            {
+                myFile << pMsgSaveEv->msg << endl;
+                myFile.close();
+            }
+
+        }
+        else if(pMsgSaveEv->event == MSG_SAVE_REPLACE)
+        {
+
+
+        }
+
+        delete pMsgSaveEv;
+    }
+
+    return uargv;
+}
 
 int create_thread_pool()
 {
@@ -450,6 +513,18 @@ int create_thread_pool()
     }
 
     cout << "client event thread pool created!" << endl;
+
+    return SUCCESS;
+}
+
+int create_msg_save_thread()
+{
+    pthread_t threadMsgSave;
+
+    pthread_create(&threadMsgSave, NULL, handle_msg_save_event, NULL);
+
+
+    cout << "client msg save thread created!" << endl;
 
     return SUCCESS;
 }

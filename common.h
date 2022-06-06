@@ -24,7 +24,11 @@
 
 int create_thread_pool();
 
-void *handle_client(void *arg);
+int create_msg_save_thread();
+
+void *handle_client_event(void *arg);
+
+void *handle_msg_save_event(void *arg);
 
 //int process_msg(char *buf, int length);
 
