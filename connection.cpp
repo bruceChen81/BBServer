@@ -38,7 +38,8 @@ int create_tcp_server_sock()
     CHECK_EXIT(bind(fd,(sockaddr *)&hint, sizeof(hint)));
 
     //listen
-    cout << "Waiting for client!" << endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        cout << "Waiting for client!" << endl;
 
     //listen(listeningSock, SOMAXCONN);
     CHECK_EXIT(listen(fd, MAX_CONN));
@@ -216,6 +217,9 @@ void conn_add(int fd)
 
     FD_SET(fd, &read_fd_set);
 
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
+        cout << "conn_add fd:" <<fd<<endl;
+
     return;
 }
 
@@ -240,11 +244,14 @@ void conn_del(int fd)
         {
             connections[i] = -1;
 
-            break;
+            //break;
         }
     }
 
     pthread_mutex_unlock(&clientConnLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
+        cout << "conn_del fd:" <<fd<<endl;
 
     return;
 }

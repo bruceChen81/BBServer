@@ -1,4 +1,5 @@
 #include "queue.h"
+#include "config.h"
 
 //client event queue
 STAILQ_HEAD(clientEvHead, _clientEvent) clientEvQueue
@@ -18,7 +19,8 @@ int create_client_event_queue()
 
     STAILQ_INIT(&clientEvQueue);
 
-    std::cout << "client event Queue created!" << std::endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "client event Queue created!" << std::endl;
 
     return 1;
 }
@@ -26,7 +28,8 @@ int create_client_event_queue()
 
 void enClientEventQueue(clientEvent *pClientEv)
 {
-    //std::cout << "enClientEvQueue type:" << pClientEv->event << " fd:" << pClientEv->fd << std::endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_QUEUE)
+        std::cout << "enClientEvQueue type:" << pClientEv->event << " fd:" << pClientEv->fd << std::endl;
 
     pthread_mutex_lock(&clientEvQueueLock);
 
@@ -57,7 +60,8 @@ clientEvent *deClientEventQueue()
 
         STAILQ_REMOVE_HEAD(&clientEvQueue,p);
 
-        //std::cout << "deClientEvQueue type:" << p->event << " fd:" << p->fd << std::endl;
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_QUEUE)
+            std::cout << "deClientEvQueue type:" << p->event << " fd:" << p->fd << std::endl;
     }
 
     pthread_mutex_unlock(&clientEvQueueLock);
@@ -104,7 +108,8 @@ int create_msg_save_event_queue()
 
     STAILQ_INIT(&msgSaveEvQueue);
 
-    std::cout << "msg save event Queue created!" << std::endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "msg save event Queue created!" << std::endl;
 
     return 1;
 }
@@ -112,7 +117,8 @@ int create_msg_save_event_queue()
 
 void enMsgSaveEventQueue(msgSaveEvent *pMsgSaveEv)
 {
-    std::cout << "msgSaveEvQueue type:" << pMsgSaveEv->event << std::endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        std::cout << "enMsgSaveEventQueue type:"<<pMsgSaveEv->event<<" msg:" << pMsgSaveEv->msg << std::endl;
 
     pthread_mutex_lock(&msgSaveEvQueueLock);
 
@@ -142,11 +148,18 @@ msgSaveEvent *deMsgSaveEventQueue()
         p = STAILQ_FIRST(&msgSaveEvQueue);
 
         STAILQ_REMOVE_HEAD(&msgSaveEvQueue,p);
-
-        std::cout << "deMsgSaveEvQueue type:" << p->event << std::endl;
     }
 
     pthread_mutex_unlock(&msgSaveEvQueueLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    {
+        if(p)
+        {
+            std::cout << "deMsgSaveEventQueue type:"<<p->event<<" msg:" << p->msg << std::endl;
+        }
+    }
+
 
     return p;
 }

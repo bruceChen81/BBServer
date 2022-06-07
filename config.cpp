@@ -18,21 +18,16 @@ using std::ios;
 
 sysCfg CONFIG;
 
-int msgNumber = 0;
-
-pthread_mutex_t clientMsgNoLock;
-
-
-
 int print_config()
 {
-    if (CONFIG.debug)
-        {
-            cout << "THMAX: " << CONFIG.thMax << endl << "BBPORT: " << CONFIG.bbPort << endl << "SYNCPORT: " << CONFIG.syncPort << endl;
-            cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
-            cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
-            cout << "CFGFILE: " << CONFIG.cfgFile << endl;
-        }
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    {
+        cout << "THMAX: " << CONFIG.thMax << endl << "BBPORT: " << CONFIG.bbPort << endl << "SYNCPORT: " << CONFIG.syncPort << endl;
+        cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
+        cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
+        cout << "CFGFILE: " << CONFIG.cfgFile << endl;
+        cout << "DBGLEVEL: " << CONFIG.debugLevel << endl;
+    }
 
     return 0;
 }
@@ -155,7 +150,8 @@ int load_config(char *pCfgFile)
     }
 
 
-    cout << "load config file success!" << endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        cout << "load config file success!" << endl;
 
     print_config();
 
@@ -166,8 +162,8 @@ int load_option(int argc, char **argv)
 {
     int option;
 
-    int bflag = 0, tflag = 0, pflag = 0, sflag = 0, fflag = 0, dflag = 0, cflag = 0, peerflag = 0;
-    unsigned int tmax, bp, sp;
+    int bflag = 0, tflag = 0, pflag = 0, sflag = 0, fflag = 0, dflag = 0, cflag = 0, peerflag = 0, Dflag = 0;
+    unsigned int tmax, bp, sp, dLevel;
 
     sysCfg optionCFG;
     memset((void *)&optionCFG, 0, sizeof(optionCFG));
@@ -175,14 +171,13 @@ int load_option(int argc, char **argv)
 //    extern char *optarg;
 //    extern int optind, optopt;
 
-    while ((option = getopt(argc,argv, "b:c:t:T:p:s:fd")) != -1)
+    while ((option = getopt(argc,argv, "b:c:t:T:p:s:fdD:")) != -1)
     {
         switch(option)
         {
             case 'b':
                 bflag = 1;
                 strcpy(optionCFG.bbFile,optarg);
-                cout<<optionCFG.bbFile<<endl;
                 break;
 
             case 'T':
@@ -192,7 +187,6 @@ int load_option(int argc, char **argv)
                 if(0<tmax && tmax<MAX_THREAD_POOL)
                 {
                     optionCFG.thMax = tmax;
-                    cout<<optionCFG.thMax<<endl;
                 }
                 break;
 
@@ -202,7 +196,6 @@ int load_option(int argc, char **argv)
                 if(0<bp && bp<65535)
                 {
                     optionCFG.bbPort = bp;
-                    cout<<optionCFG.bbPort<<endl;
                 }
                 break;
 
@@ -212,7 +205,6 @@ int load_option(int argc, char **argv)
                 if(0<sp && sp<65535)
                 {
                     optionCFG.syncPort = sp;
-                    cout<<optionCFG.syncPort<<endl;
                 }
                 break;
 
@@ -224,13 +216,23 @@ int load_option(int argc, char **argv)
             case 'd':
                 dflag = 1;
                 optionCFG.debug = true;
+                optionCFG.debugLevel = DEBUG_LEVEL_D;
+                break;
+
+            case 'D':
+                Dflag = 1;
+                dLevel = atoi(optarg);
+                if(dLevel >=0 && dLevel <= DEBUG_LEVEL_MAX)
+                {
+                    optionCFG.debugLevel = dLevel;
+                }
+
                 break;
 
             case 'c':
                 //change config file name
                 cflag = 1;
                 strcpy(optionCFG.cfgFile,optarg);
-                cout<<optionCFG.cfgFile<<endl;
                 break;
 
             default:
@@ -280,14 +282,20 @@ int load_option(int argc, char **argv)
         CONFIG.debug = optionCFG.debug;
     }
 
+    if(Dflag)
+    {
+        CONFIG.debugLevel = optionCFG.debugLevel;
+    }
+
     if(peerflag)
     {
         strcpy(CONFIG.peers, optionCFG.peers);
     }
 
-    if(cflag || bflag || tflag || pflag || sflag || fflag || dflag || peerflag)
+    if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag)
     {
-        cout << "load config option success!" << endl;
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "load config option success!" << endl;
 
         print_config();
     }
@@ -384,108 +392,13 @@ int get_last_line(string& lastline)
         //string lastline;
         getline(myFile, lastline);
 
-        cout<<"last line:"<<lastline<<endl;
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout<<"get_last_line:"<<lastline<<endl;
 
         myFile.close();
     }
 
     return 0;
 }
-
-int get_new_msg_number(std::string& strNumber)
-{
-    int number;
-
-    pthread_mutex_lock(&clientMsgNoLock);
-
-    msgNumber++;
-
-    if(msgNumber == INT_MAX)
-    {
-        msgNumber = 1;
-    }
-
-    number = msgNumber;
-
-    pthread_mutex_unlock(&clientMsgNoLock);
-
-    strNumber += std::to_string(number);
-
-    return 0;
-}
-
-int get_msg_number_byline(std::string& strNumber, std::string& line)
-{
-    std::size_t pos1;
-
-    pos1 = line.find_first_of("/");
-
-    strNumber = line.substr(0, pos1);
-
-    return 0;
-}
-
-int get_msg_username_byline(std::string& user, std::string& line)
-{
-    std::size_t pos1, pos2;
-
-    pos1 = line.find_first_of("/");
-    pos2 = line.find_last_of("/");
-
-    user = line.substr(pos1+1, pos2-pos1-1);
-
-    return 0;
-}
-
-int get_msg_body_byline(std::string& msg, std::string& line)
-{
-    std::size_t pos2;
-
-    pos2 = line.find_last_of("/");
-
-    msg = line.substr(pos2+1, line.length()-pos2-1);
-
-    return 0;
-}
-
-int load_msg_number()
-{
-    string lastline;
-    string msgNumLast;
-
-    pthread_mutex_init(&clientMsgNoLock, NULL);
-
-    get_last_line(lastline);
-
-    msgNumLast = lastline.substr(0, lastline.find("/"));
-
-    if(msgNumLast.empty())
-    {
-        cout << "load last message number error!" << endl;
-        return -1;
-    }
-
-    msgNumber = stoi(msgNumLast);
-
-    cout << "load message number:" << msgNumber << endl;
-
-    return 0;
-}
-
-int get_time()
-{
-    time_t now = time(0);
-
-    tm *ltime = localtime(&now);
-
-    cout << 1900 + ltime->tm_year << endl;
-    cout << 1 + ltime->tm_mon << endl;
-    cout << ltime->tm_mday << endl;
-    cout << ltime->tm_hour << ":" << ltime->tm_min << ":" << ltime->tm_sec<<endl;
-
-    return 0;
-}
-
-
 
 

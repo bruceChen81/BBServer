@@ -35,8 +35,9 @@ bool isClientEventQueueEmpty();
 
 typedef enum msgSaveEv
 {
-    MSG_SAVE_REPLACE = 1,
-    MSG_SAVE_WRITE
+    MSG_SAVE_WRITE = 1,
+    MSG_SAVE_REPLACE,
+    MSG_SAVE_REPLACE_COPY
 
 }msgSaveEv;
 

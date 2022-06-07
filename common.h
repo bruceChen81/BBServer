@@ -4,10 +4,10 @@
 //#include <sys/uio.h>
 //#include <errno.h>
 
-#define SUCCESS 1
+#define SUCCESS 0
 #define ERR -1
 
-#define MSG_GREETING "0.0 greeting COMMANDS: USER, READ, WRITE, REPLACE, QUIT\n"
+
 
 
 #define CHECK_EXIT(X) ({int __val = (X); (__val == -1 ? \
@@ -30,7 +30,6 @@ void *handle_client_event(void *arg);
 
 void *handle_msg_save_event(void *arg);
 
-//int process_msg(char *buf, int length);
 
 
 #endif // COMMON_H_INCLUDED

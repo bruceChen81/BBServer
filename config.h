@@ -5,6 +5,18 @@
 
 #define DEFAULT_CFG_FILE "bbserv.conf"
 
+typedef enum DbgLevel
+{
+    DEBUG_LEVEL_NONE = 0,
+    DEBUG_LEVEL_D    = 1,
+    DEBUG_LEVEL_APP  = 2,
+    DEBUG_LEVEL_CONN = 3,
+    DEBUG_LEVEL_QUEUE= 4,
+    DEBUG_LEVEL_MAX
+
+}DbgLevel;
+
+
 typedef struct sysCfg
 {
     unsigned short thMax;
@@ -16,8 +28,11 @@ typedef struct sysCfg
     bool debug;
     char cfgFile[128];
     unsigned int maxConnections;
+    unsigned int debugLevel; //1-debug == true, 2-app message, 3-queue, 4-connection
 
 }sysCfg;
+
+
 
 extern sysCfg CONFIG;
 
@@ -33,13 +48,7 @@ int getParaFromBuf(char *buf, char *arg, char *keyword);
 
 int get_last_line(std::string& lastline);
 
-int get_new_msg_number(std::string& strNumber);
 
-int get_msg_number_byline(std::string& strNumber, std::string& line);
-
-int get_msg_username_byline(std::string& user, std::string& line);
-
-int get_msg_body_byline(std::string& msg, std::string& line);
 
 
 #endif // CONFIG_H_INCLUDED

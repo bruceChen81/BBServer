@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "list.h"
+#include "config.h"
 
 using std::cout;
 using std::endl;
@@ -126,6 +127,9 @@ int client_list_add(clientInfo *pClientInfo)
 
     pthread_mutex_unlock(&clientListLock);
 
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "client_list_add, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<endl;
+
     return 0;
 
 }
@@ -142,6 +146,9 @@ int client_list_del(clientInfo *pClientInfo)
     LIST_REMOVE(pClientInfo, p);
 
     pthread_mutex_unlock(&clientListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "client_list_del, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<endl;
 
     delete pClientInfo;
 
@@ -175,6 +182,9 @@ clientInfo *client_list_find(int fd)
     {
         if(np->fd == fd)
         {
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "client_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->name<<endl;
+
             return np;
         }
     }
@@ -199,6 +209,9 @@ int client_list_save_name(int fd, const char *str)
         }
     }
     pthread_mutex_unlock(&clientListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "client_list_save_name, fd:" << fd <<" name:"<<str<<endl;
 
     return ret;
 
