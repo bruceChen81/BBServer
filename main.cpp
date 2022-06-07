@@ -152,35 +152,30 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
         msgSaveEvent *pMsgSaveEv = new msgSaveEvent;
 
+        get_new_msg_number(strNumber);
+
+        pMsgSaveEv->msg += strNumber;
+        pMsgSaveEv->msg += "/";
 
         if(strlen(pClient->name) != 0)
         {
-            username = string(pClient->name, strlen(pClient->name));
+            pMsgSaveEv->msg += string(pClient->name, strlen(pClient->name));
         }
         else
         {
-            username.append("nobody");
+            pMsgSaveEv->msg += "nobody";
         }
 
-        cout <<"client name:"<<pClient->name<<endl;
+        pMsgSaveEv->msg += username;
+        pMsgSaveEv->msg += "/";
+        pMsgSaveEv->msg += arg2;
 
-        cout <<"user name:"<<username<<endl;
-
-        get_new_msg_number(strNumber);
-
-        msgSave += strNumber;
-        msgSave += "/";
-        msgSave += username;
-        msgSave += "/";
-        msgSave += arg2;
-
-        cout <<"MSG save:"<< msgSave << endl;
+        cout <<"MSG save:"<< pMsgSaveEv->msg << endl;
 
         response.append("3.0 WROTE ");
         response.append(strNumber);
 
         pMsgSaveEv->event = MSG_SAVE_WRITE;
-        pMsgSaveEv->msg = msgSave;
 
         enMsgSaveEventQueue(pMsgSaveEv);
 
@@ -194,7 +189,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             response.append("3.0 WROTE ");
             response.append(strNumber);
         }
- */
+        */
     }
     else if(0 == arg1.compare(string("REPLACE")))
     {
@@ -203,12 +198,12 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         long posLineStart;
         string msgSaved,userSaved,numberSaved,msgInput,newLine;
 
-        myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
+        myFile.open(CONFIG.bbFile, std::ios::in);//read
         if(myFile.is_open())
         {
             while(getline(myFile, line))
             {
-                posLineStart = myFile.tellg() - (long)line.length() -(long)1;
+                posLineStart = myFile.tellg()-(long)line.length()-(long)1;
 
                 cout << "line:"<<line << endl;
                 cout << "Pos:"<<posLineStart << endl;
@@ -220,10 +215,6 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                 get_msg_username_byline(userSaved, line);
                 get_msg_body_byline(msgSaved, line);
 
-//                numberSaved = line.substr(0, line.find("/"));
-//                userSaved = line.substr(pos1+1, pos2-pos1-1);
-//                msgSaved = line.substr(pos2 +1);
-
                 msgInput = arg2.substr(arg2.find("/")+1);
 
                 cout << "numberSaved:"<<numberSaved<<endl;
@@ -231,17 +222,22 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                 cout << "userSaved:"<<userSaved<<endl;
                 cout << "msgInput:"<<msgInput<<endl;
 
-
                 //compare message-number
                 if(arg2.substr(0, arg2.find("/")) == line.substr(0, line.find("/")))
                 {
                     //cout << "Pos3:"<<std::ios_base::cur << endl;
 
-                    newLine = line.substr(0, line.find_last_of("/")+1); // include '/'
-                    newLine += msgInput;
+                    msgSaveEvent *pMsgSaveEvReplace = new msgSaveEvent;
 
-                    cout << "new line:" << newLine <<endl;
+                    pMsgSaveEvReplace->msg = line.substr(0, line.find_last_of("/")+1); // include '/'
+                    pMsgSaveEvReplace->msg += msgInput;
 
+                    cout << "new line:" << pMsgSaveEvReplace->msg <<endl;
+
+                    pMsgSaveEvReplace->event = MSG_SAVE_REPLACE;
+
+                    enMsgSaveEventQueue(pMsgSaveEvReplace);
+/*
                     //replace
                     myFile.seekp(posLineStart);
 
@@ -256,13 +252,12 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                         //copy entire file to another file, replace the line meanwhile
 
                     }
-
+*/
                     response.append("3.3 REPLACED ");
                     response.append(arg2);
 
                     break;
                 }
-
             }
 
             myFile.close();
@@ -272,10 +267,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                 response.append("3.1 UNKNOWN ");
                 response.append(arg2);
             }
-
-
         }
-
     }
     else if(0 == arg1.compare(string("QUIT")))
     {
@@ -493,8 +485,44 @@ void *handle_msg_save_event(void *arg)
         }
         else if(pMsgSaveEv->event == MSG_SAVE_REPLACE)
         {
+            long posLineStart;
+            string line, numberSaved,numberMsg;
 
+            myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
+            if(myFile.is_open())
+            {
+                while(getline(myFile, line))
+                {
+                    posLineStart = myFile.tellg()-(long)line.length()-(long)1;
 
+                    get_msg_number_byline(numberSaved,line);
+                    get_msg_number_byline(numberMsg, pMsgSaveEv->msg);
+
+                    //cout << "numberSaved:"<<numberSaved<<endl;
+                    //cout << "numberMsg:"<<numberMsg<<endl;
+
+                    //compare message-number
+                    if(numberMsg == numberSaved)
+                    {
+                        //replace
+                        myFile.seekp(posLineStart);
+
+                        myFile << pMsgSaveEv->msg;
+
+                        if(line.length() > pMsgSaveEv->msg.length())
+                        {
+                            //copy entire file to another file, replace the line meanwhile
+
+                        }
+
+                        cout << "replace msg saved successfully!" << endl;
+
+                        break;
+                    }
+                }
+
+                myFile.close();
+            }
         }
 
         delete pMsgSaveEv;

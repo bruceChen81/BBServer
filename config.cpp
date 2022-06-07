@@ -416,10 +416,9 @@ int get_new_msg_number(std::string& strNumber)
 
 int get_msg_number_byline(std::string& strNumber, std::string& line)
 {
-    std::size_t pos1, pos2;
+    std::size_t pos1;
 
     pos1 = line.find_first_of("/");
-    pos2 = line.find_last_of("/");
 
     strNumber = line.substr(0, pos1);
 
@@ -440,9 +439,8 @@ int get_msg_username_byline(std::string& user, std::string& line)
 
 int get_msg_body_byline(std::string& msg, std::string& line)
 {
-    std::size_t pos1, pos2;
+    std::size_t pos2;
 
-    pos1 = line.find_first_of("/");
     pos2 = line.find_last_of("/");
 
     msg = line.substr(pos2+1, line.length()-pos2-1);
