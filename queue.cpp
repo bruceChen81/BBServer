@@ -1,3 +1,5 @@
+#include <semaphore.h>
+
 #include "queue.h"
 #include "config.h"
 
@@ -20,7 +22,7 @@ int create_client_event_queue()
     STAILQ_INIT(&clientEvQueue);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        std::cout << "client event Queue created!" << std::endl;
+        std::cout << "Client event Queue created!" << std::endl;
 
     return 1;
 }
@@ -84,8 +86,99 @@ bool isClientEventQueueEmpty()
 
 
 
+//semaphore
+
+sem_t wrt;
+pthread_mutex_t readerMutex;
+
+int readerCnt = 0;
+
+void write_start()
+{
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "write bbfile waiting!" << std::endl;
+
+    sem_wait(&wrt);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "write bbfile begin!" << std::endl;
+
+    //read
+
+    return;
+}
+
+void write_end()
+{
+    sem_post(&wrt);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "write bbfile end!" << std::endl;
+
+    return;
+}
 
 
+
+void read_start()
+{
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "read bbfile waiting!" << std::endl;
+
+    pthread_mutex_lock(&readerMutex);
+
+    readerCnt++;
+
+    if(readerCnt == 1)
+    {
+        sem_wait(&wrt);
+    }
+
+    pthread_mutex_unlock(&readerMutex);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "read bbfile begin! reader count["<<readerCnt<<"]" << std::endl;
+
+
+    //read
+
+    return;
+
+}
+
+void read_end()
+{
+
+    pthread_mutex_lock(&readerMutex);
+
+    readerCnt--;
+
+    if(readerCnt == 0)
+    {
+        sem_post(&wrt);
+    }
+
+    pthread_mutex_unlock(&readerMutex);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "read bbfile end! reader count["<<readerCnt<<"]" << std::endl;
+
+    return;
+}
+
+
+int init_bbfile_access_semahpores()
+{
+    if (pthread_mutex_init(&readerMutex, NULL) != 0)
+    {
+        std::cout << "init readerMutex failed!" << std::endl;
+    }
+
+    sem_init(&wrt, 0, 1);
+
+    return 0;
+
+}
 
 
 
@@ -110,6 +203,7 @@ int create_msg_save_event_queue()
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
         std::cout << "msg save event Queue created!" << std::endl;
+
 
     return 1;
 }
@@ -176,4 +270,29 @@ bool isMsgSaveEventQueueEmpty()
 
     return ret;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

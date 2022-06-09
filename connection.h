@@ -3,7 +3,7 @@
 
 
 
-#define MAX_CONN 1024
+#define MAX_CONN 128
 
 void conn_init();
 

@@ -50,7 +50,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
     if(pos1 == string::npos)
     {
         //only QUIT command has no space
-        if((msg.size()== 6) && (0 == msg.compare(0,4,"QUIT")))
+        if((msg.size()== 6) && ((0 == msg.compare(0,4,"QUIT")) || (0 == msg.compare(0,4,"quit"))))
         {
             response.append("4.0 BYE");
         }
@@ -84,7 +84,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         cout << "   arg2:" << arg2 << " len:" << arg2.size()<<endl;
     }
 
-    if(0 == arg1.compare(string("USER")))
+    //if(0 == arg1.compare(string("USER")))
+    if(arg1 == "USER" || arg1 == "user")
     {
         //USER name
         //1.0 HELLO name text
@@ -103,12 +104,15 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             client_list_save_name(pClient->fd, arg2.c_str());
         }
     }
-    else if(0 == arg1.compare(string("READ")))
+    //else if(0 == arg1.compare(string("READ")))
+    else if(arg1 == "READ" || arg1 == "read")
     {
         //READ message-number
         //2.0 MESSAGE message-number poster/message
         //2.1 UNKNOWN message-number text
         //2.2 ERROR READ text
+        read_start();
+
         myFile.open(CONFIG.bbFile, std::ios::in);//read
         if(myFile.is_open())
         {
@@ -139,13 +143,18 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         {
             response += "2.2 ERROR READ";
         }
+
+        read_end();
     }
-    else if(0 == arg1.compare(string("WRITE")))
+    //else if(0 == arg1.compare(string("WRITE")))
+    else if(arg1 == "WRITE" || arg1 == "write")
     {
         //WRITE message
         //save:message-number/poster/message
         //3.0 WROTE message-number
         //3.2 ERROR WRITE text
+
+        read_start();
 
         myFile.open(CONFIG.bbFile, std::ios::in);//read
         if(myFile.is_open())
@@ -158,6 +167,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
             return 0;
         }
+
+        read_end();
 
         msgSaveEvent *pMsgSaveEv = new msgSaveEvent;
 
@@ -201,13 +212,16 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         }
         */
     }
-    else if(0 == arg1.compare(string("REPLACE")))
+    //else if(0 == arg1.compare(string("REPLACE")))
+    else if(arg1 == "REPLACE" || arg1 == "replace")
     {
         //REPLACE message-number/message
         //3.1 UNKNOWN message-number
 
         //long posLineStart;
         string msgSaved,userSaved,numberSaved,msgInput,newLine;
+
+        read_start();
 
         myFile.open(CONFIG.bbFile, std::ios::in);//read
         if(myFile.is_open())
@@ -264,8 +278,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                     }
                     else
                     {
-                        //copy entire file to another file, replace the line meanwhile
-                        pMsgSaveEvReplace->event = MSG_SAVE_REPLACE_COPY;
+                        //saved message is longer than input
+                        pMsgSaveEvReplace->event = MSG_SAVE_REPLACE_PLUS;
                     }
 
                     enMsgSaveEventQueue(pMsgSaveEvReplace);
@@ -288,6 +302,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
             myFile.close();
 
+            read_end();
+
             if(response.empty())
             {
                 response.append("3.1 UNKNOWN ");
@@ -295,7 +311,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             }
         }
     }
-    else if(0 == arg1.compare(string("QUIT")))
+    //else if(0 == arg1.compare(string("QUIT")))
+    else if(arg1 == "QUIT" || arg1 == "quit")
     {
         //QUIT text
         //4.0 BYE text

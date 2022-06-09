@@ -22,10 +22,10 @@ queue.o: queue.cpp
 list.o: list.cpp
 	$(CC) $(FLAGS) list.cpp
 
-msg.o:
+msg.o: msg.cpp
 	$(CC) $(FLAGS) msg.cpp
 
 
 
 clean:
-	rm -f $(OBJS) bbserv
+	rm -f $(OBJS) bbserv core

@@ -33,11 +33,24 @@ bool isClientEventQueueEmpty();
 
 
 
+int init_bbfile_access_semahpores();
+
+void read_start();
+
+void read_end();
+
+void write_start();
+
+void write_end();
+
+
+
+
 typedef enum msgSaveEv
 {
     MSG_SAVE_WRITE = 1,
     MSG_SAVE_REPLACE,
-    MSG_SAVE_REPLACE_COPY
+    MSG_SAVE_REPLACE_PLUS
 
 }msgSaveEv;
 

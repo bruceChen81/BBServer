@@ -26,7 +26,7 @@ int print_config()
         cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
         cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
         cout << "CFGFILE: " << CONFIG.cfgFile << endl;
-        cout << "DBGLEVEL: " << CONFIG.debugLevel << endl;
+        cout << "DBGLEVEL: " << CONFIG.debugLevel << endl<<endl;
     }
 
     return 0;
@@ -162,7 +162,7 @@ int load_config(char *pCfgFile)
 
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
-        cout << "load config file success!" << endl;
+        cout << "Load config file success!" << endl;
 
     print_config();
 
@@ -243,13 +243,22 @@ int load_option(int argc, char **argv)
             case 'c':
                 //change config file name
                 cflag = 1;
-                strcpy(optionCFG.cfgFile,optarg);
+                strcpy(optionCFG.peers,optarg);
                 break;
 
             default:
                 //peers ?? host:port
-                //peerflag = 1;
-                cout<<"Invalid option!"<<endl;
+//                if(strstr(optarg,":") != nullptr)
+//                {
+//                    peerflag = 1;
+//                    cout << optarg << endl;
+//                    strcpy(CONFIG.peers, optarg);
+//                }
+//                else
+                {
+                    cout<<"Invalid option or argument!"<<endl;
+                }
+
                 break;
         }
     }
@@ -306,7 +315,7 @@ int load_option(int argc, char **argv)
     if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag)
     {
         if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "load config option success!" << endl;
+            cout << "Load config option success!" << endl;
 
         print_config();
     }

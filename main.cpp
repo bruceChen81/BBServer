@@ -61,7 +61,10 @@ int main(int argc, char *argv[])
 
     create_msg_save_thread();
 
+    init_bbfile_access_semahpores();
+
     start_conn_service();
+
 
 
     return 0;
@@ -217,6 +220,8 @@ void *handle_msg_save_event(void *arg)
 
         if(pMsgSaveEv->event == MSG_SAVE_WRITE)
         {
+            write_start();
+
             myFile.open(CONFIG.bbFile, std::ios::app);//write, append
 
             if(myFile.is_open())
@@ -225,12 +230,16 @@ void *handle_msg_save_event(void *arg)
                 myFile.close();
             }
 
+            write_end();
+
         }
         else if(pMsgSaveEv->event == MSG_SAVE_REPLACE)
         {
             long posLineStart;
             string line, numberSaved,numberMsg;
 
+            write_start();
+
             myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
             if(myFile.is_open())
             {
@@ -252,12 +261,6 @@ void *handle_msg_save_event(void *arg)
 
                         myFile << pMsgSaveEv->msg;
 
-                        if(line.length() > pMsgSaveEv->msg.length())
-                        {
-                            //copy entire file to another file, replace the line meanwhile
-
-                        }
-
                         if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
                             cout << "replace msg saved successfully!" << endl;
 
@@ -267,12 +270,16 @@ void *handle_msg_save_event(void *arg)
 
                 myFile.close();
             }
+
+            write_end();
         }
-        else if(pMsgSaveEv->event == MSG_SAVE_REPLACE_COPY)
+        else if(pMsgSaveEv->event == MSG_SAVE_REPLACE_PLUS)
         {
             long posLineStart;
             string line, numberSaved,numberMsg;
 
+            write_start();
+
             myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
             if(myFile.is_open())
             {
@@ -296,8 +303,9 @@ void *handle_msg_save_event(void *arg)
 
                         if(line.length() > pMsgSaveEv->msg.length())
                         {
-                            //copy entire file to another file, replace the line meanwhile
+                            string str = string(line.length() - pMsgSaveEv->msg.length(), ' ');
 
+                            myFile << str;
                         }
 
                         if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
@@ -309,6 +317,8 @@ void *handle_msg_save_event(void *arg)
 
                 myFile.close();
             }
+
+            write_end();
         }
 
         delete pMsgSaveEv;

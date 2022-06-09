@@ -39,7 +39,7 @@ int create_tcp_server_sock()
 
     //listen
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        cout << "Waiting for client!" << endl;
+        cout << "Server socket has been created, Waiting for client --------->" << endl<<endl;
 
     //listen(listeningSock, SOMAXCONN);
     CHECK_EXIT(listen(fd, MAX_CONN));
@@ -94,6 +94,8 @@ int start_conn_service()
             }
         }
 
+        usleep(10);
+
     }//while()
 
     // close all sockets
@@ -137,7 +139,7 @@ void conn_init()
 
     if (pthread_mutex_init(&clientConnLock, NULL) != 0)
     {
-        std::cout << "init clientConnLock failed!" << std::endl;
+        std::cout << "Init clientConnLock failed!" << std::endl;
     }
 
     pthread_mutex_lock(&clientConnLock);
@@ -218,7 +220,7 @@ void conn_add(int fd)
     FD_SET(fd, &read_fd_set);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
-        cout << "conn_add fd:" <<fd<<endl;
+        cout << "connection add fd:" <<fd<<endl;
 
     return;
 }
@@ -251,7 +253,7 @@ void conn_del(int fd)
     pthread_mutex_unlock(&clientConnLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
-        cout << "conn_del fd:" <<fd<<endl;
+        cout << "connection del fd:" <<fd<<endl;
 
     return;
 }

@@ -109,7 +109,7 @@ int create_client_list()
 
     LIST_INIT(&clientList);
 
-    std::cout << "client list created!" << std::endl;
+    std::cout << "Client list created!" << std::endl;
 
     return 1;
 }
