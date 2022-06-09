@@ -42,6 +42,8 @@
 		<Unit filename="list.cpp" />
 		<Unit filename="list.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="msg.cpp" />
+		<Unit filename="msg.h" />
 		<Unit filename="queue.cpp" />
 		<Unit filename="queue.h" />
 		<Extensions />

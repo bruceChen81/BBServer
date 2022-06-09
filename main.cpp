@@ -1,6 +1,6 @@
 //main.cpp
 //
-//Created by Dianyong Chen, 2022-05-24
+//Created  2022-05-24
 //
 //
 
@@ -139,7 +139,9 @@ void *handle_client_event(void *arg)
             if(!pClient)
             {
                 //conn_del(fd);
-                cout << "client has been deleted! fd:" << fd << endl;
+                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                    cout << "client has been deleted! fd:" << fd << endl;
+
                 continue;
             }
 
@@ -151,7 +153,8 @@ void *handle_client_event(void *arg)
             {
                 conn_del(fd);
 
-                cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                    cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
 
                 client_list_del(pClient);
             }
@@ -204,7 +207,8 @@ void *handle_msg_save_event(void *arg)
 
         pMsgSaveEv = deMsgSaveEventQueue();
 
-        cout << "handle_msg_save_event: "<<pMsgSaveEv->msg << endl;
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout << "handle_msg_save_event: "<<pMsgSaveEv->msg << endl;
 
         if(nullptr == pMsgSaveEv)
         {
@@ -254,7 +258,8 @@ void *handle_msg_save_event(void *arg)
 
                         }
 
-                        cout << "replace msg saved successfully!" << endl;
+                        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                            cout << "replace msg saved successfully!" << endl;
 
                         break;
                     }
@@ -295,7 +300,8 @@ void *handle_msg_save_event(void *arg)
 
                         }
 
-                        cout << "replace msg saved successfully!" << endl;
+                        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                            cout << "replace msg saved successfully!" << endl;
 
                         break;
                     }
@@ -320,7 +326,8 @@ int create_thread_pool()
         pthread_create(&threadPool[i], NULL, handle_client_event, NULL);
     }
 
-    cout << "client event thread pool created!" << endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "client event thread pool created!" << endl;
 
     return SUCCESS;
 }
@@ -332,7 +339,8 @@ int create_msg_save_thread()
     pthread_create(&threadMsgSave, NULL, handle_msg_save_event, NULL);
 
 
-    cout << "client msg save thread created!" << endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "client msg save thread created!" << endl;
 
     return SUCCESS;
 }

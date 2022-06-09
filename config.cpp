@@ -133,9 +133,16 @@ int load_config(char *pCfgFile)
     //DAEMON
     memset(arg, 0, sizeof(arg));
 
-    if(SUCCESS != getParaFromBuf((char *)buf, (char *)arg,(char *)"DAEMON="))
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DAEMON="))
     {
-        CONFIG.daemon = false;
+        if(!strcmp(arg,"false") || !strcmp(arg, "0"))
+        {
+            CONFIG.daemon = false;
+        }
+        else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
+        {
+            CONFIG.daemon = true;
+        }
     }
 
     //DEBUG
@@ -143,14 +150,18 @@ int load_config(char *pCfgFile)
 
     if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DEBUG="))
     {
-        if(*arg == 'D')
+        if(!strcmp(arg,"false") || !strcmp(arg, "0"))
+        {
+            CONFIG.debug = false;
+        }
+        else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
         {
             CONFIG.debug = true;
         }
     }
 
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
         cout << "load config file success!" << endl;
 
     print_config();
@@ -331,32 +342,6 @@ int getParaFromBuf(char *buf, char *para, char *keyword)
 }
 
 
-int file_ope()
-{
-    fstream myFile;
-
-    myFile.open("bbserv.conf", ios::in);//read
-    if(myFile.is_open())
-    {
-        string line;
-        while(getline(myFile, line))
-        {
-            cout<<line<<endl;
-        }
-        //cout << myFile;
-        myFile.close();
-    }
-
-    myFile.open("bbserv.conf", ios::app);//write, append
-    if(myFile.is_open())
-    {
-        myFile << "Hello\n";
-        myFile.close();
-    }
-
-    return 1;
-}
-
 int get_last_line(string& lastline)
 {
     //string filename = "bbfile";
@@ -393,7 +378,7 @@ int get_last_line(string& lastline)
         getline(myFile, lastline);
 
         if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout<<"get_last_line:"<<lastline<<endl;
+            cout<<"bbfile get_last_line:"<<lastline<<endl;
 
         myFile.close();
     }

@@ -58,14 +58,21 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         return 0;
     }
 
-
+    //message terminated by \r\n or \n
     arg1 = msg.substr(0, pos1);
-    arg2 = msg.substr(pos1+1, msg.size()-pos1-3); //delete \n in the end
+
+    if(msg[msg.size()-2] == '\r')
+    {
+        arg2 = msg.substr(pos1+1, msg.size()-pos1-3); //delete \r\n in the end
+    }
+    else
+    {
+        arg2 = msg.substr(pos1+1, msg.size()-pos1-2); //delete \n in the end
+    }
 
     if(arg1.empty() || arg2.empty())
     {
         response.append("ERROR COMMAND");
-        cout << "error command received!" << endl;
 
         return 0;
     }
@@ -73,8 +80,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
     {
-        cout << "arg1:" << arg1 << " len:" << arg1.size()<<endl;
-        cout << "arg2:" << arg2 << " len:" << arg2.size()<<endl;
+        cout << "arg1:" << arg1 << " len:" << arg1.size();
+        cout << "   arg2:" << arg2 << " len:" << arg2.size()<<endl;
     }
 
     if(0 == arg1.compare(string("USER")))
@@ -85,7 +92,6 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
         if((arg2.find("/") != string::npos) || (arg2.find(" ") != string::npos))
         {
-            cout << "ERROR USER" << endl;
             response.append("1.2 ERROR USER");
         }
         else
@@ -173,7 +179,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         pMsgSaveEv->msg += "/";
         pMsgSaveEv->msg += arg2;
 
-        cout <<"MSG save:"<< pMsgSaveEv->msg << endl;
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout <<"write msg:"<< pMsgSaveEv->msg << endl;
 
         response.append("3.0 WROTE ");
         response.append(strNumber);
@@ -198,7 +205,8 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
     {
         //REPLACE message-number/message
         //3.1 UNKNOWN message-number
-        long posLineStart;
+
+        //long posLineStart;
         string msgSaved,userSaved,numberSaved,msgInput,newLine;
 
         myFile.open(CONFIG.bbFile, std::ios::in);//read
@@ -206,7 +214,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         {
             while(getline(myFile, line))
             {
-                posLineStart = myFile.tellg()-(long)line.length()-(long)1;
+                //posLineStart = myFile.tellg()-(long)line.length()-(long)1;
 
                 pos1 = line.find_first_of("/");
                 pos2 = line.find_last_of("/");
@@ -322,6 +330,9 @@ int get_new_msg_number(std::string& strNumber)
 
     strNumber += std::to_string(number);
 
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "get new msg number:" << strNumber <<endl;
+
     return 0;
 }
 
@@ -372,13 +383,16 @@ int load_msg_number()
 
     if(msgNumLast.empty())
     {
-        cout << "load last message number error!" << endl;
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout << "can not read last message number!" << endl;
+
         return -1;
     }
 
     msgNumber = stoi(msgNumLast);
 
-    cout << "load message number:" << msgNumber << endl;
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "load message number:" << msgNumber << endl;
 
     return 0;
 }
