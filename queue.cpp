@@ -83,3 +83,94 @@ bool isClientEventQueueEmpty()
 }
 
 
+
+//data synchronization event queue
+
+STAILQ_HEAD(dataSyncEvHead, _dataSyncEvent) dataSyncEvQueue
+        = STAILQ_HEAD_INITIALIZER(dataSyncEvQueue);
+
+pthread_mutex_t dataSyncEvQueueLock;
+
+pthread_cond_t cond_dataSyncEvQueue = PTHREAD_COND_INITIALIZER;
+
+
+int create_data_sync_event_queue()
+{
+    if (pthread_mutex_init(&dataSyncEvQueueLock, NULL) != 0)
+    {
+        std::cout << "init dataSyncEvQueueLock failed!" << std::endl;
+    }
+
+    STAILQ_INIT(&dataSyncEvQueue);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "data sync event Queue created!" << std::endl;
+
+
+    return 1;
+}
+
+
+void enDataSyncEventQueue(dataSyncEvent *pDataSyncEv)
+{
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        std::cout << "enDataSyncEventQueue type:"<<pDataSyncEv->event<<" msg:" << pDataSyncEv->msg << std::endl;
+
+    pthread_mutex_lock(&dataSyncEvQueueLock);
+
+    STAILQ_INSERT_TAIL(&dataSyncEvQueue, pDataSyncEv, p);
+
+    pthread_cond_signal(&cond_dataSyncEvQueue);
+
+    pthread_mutex_unlock(&dataSyncEvQueueLock);
+
+    return;
+}
+
+dataSyncEvent *deDataSyncEventQueue()
+{
+    dataSyncEvent *p = nullptr;
+
+    pthread_mutex_lock(&dataSyncEvQueueLock);
+
+    pthread_cond_wait(&cond_dataSyncEvQueue, &dataSyncEvQueueLock);
+
+    if (STAILQ_EMPTY(&dataSyncEvQueue))
+    {
+        p = nullptr;
+    }
+    else
+    {
+        p = STAILQ_FIRST(&dataSyncEvQueue);
+
+        STAILQ_REMOVE_HEAD(&dataSyncEvQueue,p);
+    }
+
+    pthread_mutex_unlock(&dataSyncEvQueueLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    {
+        if(p)
+        {
+            std::cout << "deDataSyncEventQueue type:"<<p->event<<" msg:" << p->msg << std::endl;
+        }
+    }
+
+
+    return p;
+}
+
+bool isDataSyncEventQueueEmpty()
+{
+    bool ret = false;
+
+    pthread_mutex_lock(&dataSyncEvQueueLock);
+
+    ret = STAILQ_EMPTY(&dataSyncEvQueue);
+
+    pthread_mutex_unlock(&dataSyncEvQueueLock);
+
+    return ret;
+}
+
+

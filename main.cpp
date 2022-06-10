@@ -70,10 +70,22 @@ int main(int argc, char *argv[])
             cout << "Client event queue created!" << endl;
     }
 
+    if(create_data_sync_event_queue() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Data sync event queue created!" << endl;
+    }
+
     if(create_thread_pool() >= 0)
     {
         if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
             cout << "Client event process thread pool created!" << endl;
+    }
+
+    if(create_data_sync_thread() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Data sync event process thread created!" << endl;
     }
 
 
@@ -120,8 +132,6 @@ void *handle_client_event(void *arg)
         {
             continue;
         }
-
-        //cout << "deQueue Client fd = " << pClient->fd << endl;
 
         evType = pClientEv->event;
         fd = pClientEv->fd;
@@ -218,6 +228,47 @@ void *handle_client_event(void *arg)
 
 
 
+void *handle_data_sync_event(void *arg)
+{
+    char *uargv = nullptr;
+
+    dataSyncEvent *pDataSyncEv;
+
+    while(true)
+    {
+        pDataSyncEv = nullptr;
+
+        pDataSyncEv = deDataSyncEventQueue();
+
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout << "handle_data_sync_event: "<<pDataSyncEv->msg << endl;
+
+        if(nullptr == pDataSyncEv)
+        {
+            continue;
+        }
+
+        if(pDataSyncEv->event == DATA_SYNC_WRITE)
+        {
+
+
+        }
+        else if(pDataSyncEv->event == DATA_SYNC_REPLACE)
+        {
+
+
+        }
+
+
+        delete pDataSyncEv;
+    }
+
+    return uargv;
+}
+
+
+
+
 int create_thread_pool()
 {
     pthread_t threadPool[CONFIG.thMax];
@@ -230,7 +281,14 @@ int create_thread_pool()
     return SUCCESS;
 }
 
+int create_data_sync_thread()
+{
+    pthread_t threadDataSync;
 
+    pthread_create(&threadDataSync, NULL, handle_data_sync_event, NULL);
+
+    return SUCCESS;
+}
 
 
 

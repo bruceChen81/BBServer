@@ -59,7 +59,7 @@ void read_start()
     pthread_mutex_unlock(&readerMutex);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: read begin! reader count["<<readerCnt<<"]" << std::endl;
+        std::cout << "BBFile Access: read begin! set reader count["<<readerCnt<<"]" << std::endl;
 
 
     //for test
@@ -86,7 +86,7 @@ void read_end()
     pthread_mutex_unlock(&readerMutex);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: read end! reader count["<<readerCnt<<"]" << std::endl;
+        std::cout << "BBFile Access: read end!   set reader count["<<readerCnt<<"]" << std::endl;
 
     return;
 }

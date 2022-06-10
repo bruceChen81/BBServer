@@ -18,7 +18,7 @@ int get_msg_username_byline(std::string& user, std::string& line);
 
 int get_msg_body_byline(std::string& msg, std::string& line);
 
-
+int send_data_sync_event(dataSyncEvType type, std::string& msg);
 
 
 

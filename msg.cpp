@@ -191,6 +191,9 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         }
 
         write_end();
+
+        //sync data
+        send_data_sync_event(DATA_SYNC_WRITE, msgSave);
     }
     else if(arg1 == "REPLACE" || arg1 == "replace")
     {
@@ -250,6 +253,9 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
                     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
                         cout << "replace msg saved successfully!" << endl;
 
+                    //for data sync
+                    msgSave += newLine;
+
                     break;
                 }
             }
@@ -265,12 +271,13 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             response.append(numberInput);
         }
 
+        //sync data
+        send_data_sync_event(DATA_SYNC_REPLACE, msgSave);
     }
     else if(arg1 == "QUIT" || arg1 == "quit")
     {
         //QUIT text
         //4.0 BYE text
-        response.clear();
 
         response.append("4.0 BYE");
     }
@@ -282,6 +289,18 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
     return 0;
 }
 
+
+int send_data_sync_event(dataSyncEvType type, std::string& msg)
+{
+    dataSyncEvent *pDataSyncEv = new dataSyncEvent;
+
+    pDataSyncEv->event = type;
+    pDataSyncEv->msg += msg;
+
+    enDataSyncEventQueue(pDataSyncEv);
+
+    return 0;
+}
 
 int get_new_msg_number(std::string& strNumber)
 {
