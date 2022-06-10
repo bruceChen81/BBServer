@@ -24,11 +24,9 @@
 
 int create_thread_pool();
 
-int create_msg_save_thread();
-
 void *handle_client_event(void *arg);
 
-void *handle_msg_save_event(void *arg);
+
 
 
 

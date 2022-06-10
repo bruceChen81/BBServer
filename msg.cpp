@@ -12,6 +12,7 @@
 #include "queue.h"
 #include "list.h"
 #include "msg.h"
+#include "semaphore.h"
 
 using std::cout;
 using std::endl;
@@ -27,18 +28,14 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
     std::size_t pos1, pos2;
 
-    string arg;
-    string arg1, arg2;
-    //string response;
+    string arg, arg1, arg2;
 
     string msg = string(buf,length);
 
-    string msgSave;
-    string username;
-    string strNumber;
+    string line, msgSave, username, strNumber;
 
     fstream myFile;
-    string line;
+
 
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
         cout << "process_msg: "<< msg << endl;
@@ -104,7 +101,6 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             client_list_save_name(pClient->fd, arg2.c_str());
         }
     }
-    //else if(0 == arg1.compare(string("READ")))
     else if(arg1 == "READ" || arg1 == "read")
     {
         //READ message-number
@@ -146,7 +142,6 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
         read_end();
     }
-    //else if(0 == arg1.compare(string("WRITE")))
     else if(arg1 == "WRITE" || arg1 == "write")
     {
         //WRITE message
@@ -154,54 +149,34 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
         //3.0 WROTE message-number
         //3.2 ERROR WRITE text
 
-        read_start();
-
-        myFile.open(CONFIG.bbFile, std::ios::in);//read
-        if(myFile.is_open())
-        {
-            myFile.close();
-        }
-        else
-        {
-            response.append("3.2 ERROR WRITE bbfile not exist!");
-
-            return 0;
-        }
-
-        read_end();
-
-        msgSaveEvent *pMsgSaveEv = new msgSaveEvent;
+        msgSave.clear();
 
         get_new_msg_number(strNumber);
 
-        pMsgSaveEv->msg += strNumber;
-        pMsgSaveEv->msg += "/";
+        msgSave += strNumber;
+        msgSave += "/";
 
         if(strlen(pClient->name) != 0)
         {
-            pMsgSaveEv->msg += string(pClient->name, strlen(pClient->name));
+            msgSave += string(pClient->name, strlen(pClient->name));
         }
         else
         {
-            pMsgSaveEv->msg += "nobody";
+            msgSave += "nobody";
         }
 
-        //pMsgSaveEv->msg += username;
-        pMsgSaveEv->msg += "/";
-        pMsgSaveEv->msg += arg2;
+        msgSave += "/";
+        msgSave += arg2;
 
         if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout <<"write msg:"<< pMsgSaveEv->msg << endl;
+            cout <<"write msg:"<< msgSave << endl;
 
-        response.append("3.0 WROTE ");
-        response.append(strNumber);
+        //write file
 
-        pMsgSaveEv->event = MSG_SAVE_WRITE;
+        write_start();
 
-        enMsgSaveEventQueue(pMsgSaveEv);
-
-        /*
         myFile.open(CONFIG.bbFile, std::ios::app);//write, append
+
         if(myFile.is_open())
         {
             myFile << msgSave << endl;
@@ -210,112 +185,92 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
             response.append("3.0 WROTE ");
             response.append(strNumber);
         }
-        */
+        else
+        {
+            response.append("3.2 ERROR WRITE");
+        }
+
+        write_end();
     }
-    //else if(0 == arg1.compare(string("REPLACE")))
     else if(arg1 == "REPLACE" || arg1 == "replace")
     {
         //REPLACE message-number/message
         //3.1 UNKNOWN message-number
 
-        //long posLineStart;
-        string msgSaved,userSaved,numberSaved,msgInput,newLine;
+        long posLineStart;
+        string numberSaved,numberInput,msgInput,newLine;
 
-        read_start();
+        write_start();
 
-        myFile.open(CONFIG.bbFile, std::ios::in);//read
+        myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
         if(myFile.is_open())
         {
             while(getline(myFile, line))
             {
-                //posLineStart = myFile.tellg()-(long)line.length()-(long)1;
+                posLineStart = myFile.tellg()-(long)line.length()-(long)1;
 
-                pos1 = line.find_first_of("/");
-                pos2 = line.find_last_of("/");
-
-                get_msg_number_byline(numberSaved,line);
-                get_msg_username_byline(userSaved, line);
-                get_msg_body_byline(msgSaved, line);
-
-                msgInput = arg2.substr(arg2.find("/")+1);
-
-//                if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-//                {
-//                    cout << "REPLACE numberSaved:"<<numberSaved<<endl;
-//                    cout << "        userSaved:"<<userSaved<<endl;
-//                    cout << "        msgSaved:"<<msgSaved<<endl;
-//                    cout << "        msgInput:"<<msgInput<<endl;
-//                }
-
+                numberSaved = line.substr(0, line.find("/"));
+                numberInput = arg2.substr(0, arg2.find("/"));
 
                 //compare message-number
-                if(arg2.substr(0, arg2.find("/")) == line.substr(0, line.find("/")))
+                if(numberInput == numberSaved)
                 {
-                    //cout << "Pos3:"<<std::ios_base::cur << endl;
+                    msgInput = arg2.substr(arg2.find("/")+1);
 
-                    msgSaveEvent *pMsgSaveEvReplace = new msgSaveEvent;
+                    newLine.clear();
 
-                    pMsgSaveEvReplace->msg = numberSaved;
-
-                    pMsgSaveEvReplace->msg += "/";
+                    newLine += numberSaved;
+                    newLine += "/";
 
                     if(strlen(pClient->name) != 0)
                     {
-                        pMsgSaveEvReplace->msg += string(pClient->name, strlen(pClient->name));
+                        newLine += string(pClient->name, strlen(pClient->name));
                     }
                     else
                     {
-                        pMsgSaveEvReplace->msg += "nobody";
+                        newLine += "nobody";
                     }
 
-                    pMsgSaveEvReplace->msg += "/";
-                    pMsgSaveEvReplace->msg += msgInput;
+                    newLine += "/";
+                    newLine += msgInput;
 
-                    if(msgSaved.length()<= msgInput.length())
-                    {
-                        pMsgSaveEvReplace->event = MSG_SAVE_REPLACE;
-
-                    }
-                    else
-                    {
-                        //saved message is longer than input
-                        pMsgSaveEvReplace->event = MSG_SAVE_REPLACE_PLUS;
-                    }
-
-                    enMsgSaveEventQueue(pMsgSaveEvReplace);
-/*
                     //replace
                     myFile.seekp(posLineStart);
-
-                    //myFile.write("",line.length());
-
-                    myFile.seekp(posLineStart);
-
                     myFile << newLine;
-*/
+
+                    if(line.length() > newLine.length())
+                    {
+                        string str = string(line.length() - newLine.length(), ' ');
+                        myFile << str;
+                    }
+
                     response.append("3.3 REPLACED ");
-                    response.append(arg2);
+                    response.append(numberInput);
+
+                    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                        cout << "replace msg saved successfully!" << endl;
 
                     break;
                 }
             }
 
             myFile.close();
-
-            read_end();
-
-            if(response.empty())
-            {
-                response.append("3.1 UNKNOWN ");
-                response.append(arg2);
-            }
         }
+
+        write_end();
+
+        if(response.empty())
+        {
+            response.append("3.1 UNKNOWN ");
+            response.append(numberInput);
+        }
+
     }
-    //else if(0 == arg1.compare(string("QUIT")))
     else if(arg1 == "QUIT" || arg1 == "quit")
     {
         //QUIT text
         //4.0 BYE text
+        response.clear();
 
         response.append("4.0 BYE");
     }
@@ -353,39 +308,6 @@ int get_new_msg_number(std::string& strNumber)
     return 0;
 }
 
-int get_msg_number_byline(std::string& strNumber, std::string& line)
-{
-    std::size_t pos1;
-
-    pos1 = line.find_first_of("/");
-
-    strNumber = line.substr(0, pos1);
-
-    return 0;
-}
-
-int get_msg_username_byline(std::string& user, std::string& line)
-{
-    std::size_t pos1, pos2;
-
-    pos1 = line.find_first_of("/");
-    pos2 = line.find_last_of("/");
-
-    user = line.substr(pos1+1, pos2-pos1-1);
-
-    return 0;
-}
-
-int get_msg_body_byline(std::string& msg, std::string& line)
-{
-    std::size_t pos2;
-
-    pos2 = line.find_last_of("/");
-
-    msg = line.substr(pos2+1, line.length()-pos2-1);
-
-    return 0;
-}
 
 int load_msg_number()
 {

@@ -62,6 +62,7 @@ int load_config(char *pCfgFile)
     CONFIG.daemon = true;
     CONFIG.debug = false;
     strcpy(CONFIG.cfgFile, pCfgFile);
+    CONFIG.debugLevel = DEBUG_LEVEL_NONE;
     //CONFIG.maxConnections = CONFIG.thMax;
 
 
@@ -153,16 +154,14 @@ int load_config(char *pCfgFile)
         if(!strcmp(arg,"false") || !strcmp(arg, "0"))
         {
             CONFIG.debug = false;
+            CONFIG.debugLevel = DEBUG_LEVEL_NONE;
         }
         else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
         {
             CONFIG.debug = true;
+            CONFIG.debugLevel = DEBUG_LEVEL_D;
         }
     }
-
-
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
-        cout << "Load config file success!" << endl;
 
     print_config();
 
@@ -243,7 +242,7 @@ int load_option(int argc, char **argv)
             case 'c':
                 //change config file name
                 cflag = 1;
-                strcpy(optionCFG.peers,optarg);
+                strcpy(optionCFG.cfgFile,optarg);
                 break;
 
             default:
@@ -300,6 +299,11 @@ int load_option(int argc, char **argv)
     if(dflag)
     {
         CONFIG.debug = optionCFG.debug;
+
+        if(CONFIG.debugLevel < DEBUG_LEVEL_D)
+        {
+            CONFIG.debugLevel = DEBUG_LEVEL_D;
+        }
     }
 
     if(Dflag)

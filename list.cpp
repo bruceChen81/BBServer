@@ -109,9 +109,7 @@ int create_client_list()
 
     LIST_INIT(&clientList);
 
-    std::cout << "Client list created!" << std::endl;
-
-    return 1;
+    return 0;
 }
 
 int client_list_add(clientInfo *pClientInfo)

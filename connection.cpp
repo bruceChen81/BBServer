@@ -37,10 +37,6 @@ int create_tcp_server_sock()
 
     CHECK_EXIT(bind(fd,(sockaddr *)&hint, sizeof(hint)));
 
-    //listen
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        cout << "Server socket has been created, Waiting for client --------->" << endl<<endl;
-
     //listen(listeningSock, SOMAXCONN);
     CHECK_EXIT(listen(fd, MAX_CONN));
 
@@ -63,6 +59,9 @@ int start_conn_service()
     CHECK_EXIT(server_fd);
 
     conn_add(server_fd);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
+        cout << "Server startup complete, waiting for client --------->" << endl<<endl;
 
     while(true)
     {
@@ -94,7 +93,7 @@ int start_conn_service()
             }
         }
 
-        usleep(10);
+        usleep(1000);
 
     }//while()
 

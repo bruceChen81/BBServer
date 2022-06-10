@@ -27,6 +27,7 @@
 #include "connection.h"
 #include "list.h"
 #include "msg.h"
+#include "semaphore.h"
 
 using std::cout;
 using std::endl;
@@ -40,7 +41,11 @@ using std::cin;
 
 int main(int argc, char *argv[])
 {
-    load_config((char *)DEFAULT_CFG_FILE);
+    if (load_config((char *)DEFAULT_CFG_FILE) >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "Load config file success!" << endl;
+    }
 
     load_option(argc, argv);
 
@@ -53,19 +58,32 @@ int main(int argc, char *argv[])
 
     load_msg_number();
 
-    create_client_list();
+    if(create_client_list() >= 0)
+    {
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Client list created!" << endl;
+    }
 
-    create_client_event_queue();
+    if(create_client_event_queue() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Client event queue created!" << endl;
+    }
 
-    create_thread_pool();
+    if(create_thread_pool() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Client event process thread pool created!" << endl;
+    }
 
-    create_msg_save_thread();
 
-    init_bbfile_access_semahpores();
+    if(init_bbfile_access_semahpores() >= 0)
+    {
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Init bbfile access control semaphores success!" << endl;
+    }
 
     start_conn_service();
-
-
 
     return 0;
 }
@@ -117,7 +135,9 @@ void *handle_client_event(void *arg)
 
             if(new_fd >= 0)
             {
-                cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
+                if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                    cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
+
                 //add new fd to fd set
                 conn_add(new_fd);
 
@@ -156,16 +176,16 @@ void *handle_client_event(void *arg)
             {
                 conn_del(fd);
 
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
                     cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
 
                 client_list_del(pClient);
             }
             else if (bytesRecved > 0)
             {
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
                 {
-                    cout << "receive msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: "
+                    cout << "Recved msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: "
                           << string(buf, 0, bytesRecved)<< endl;
                 }
 
@@ -177,8 +197,8 @@ void *handle_client_event(void *arg)
 
                 response.append("\n");
 
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                    cout << "send response:" << response << endl;
+                if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                    cout << "Send response:" << response << endl;
 
                 bytesSend = send(fd,response.c_str(),response.size(),0);
                 CHECK(bytesSend);
@@ -196,136 +216,7 @@ void *handle_client_event(void *arg)
     return uargv;
 }
 
-void *handle_msg_save_event(void *arg)
-{
-    char *uargv = nullptr;
 
-    msgSaveEvent *pMsgSaveEv;
-
-    fstream myFile;
-
-    while(true)
-    {
-        pMsgSaveEv = nullptr;
-
-        pMsgSaveEv = deMsgSaveEventQueue();
-
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout << "handle_msg_save_event: "<<pMsgSaveEv->msg << endl;
-
-        if(nullptr == pMsgSaveEv)
-        {
-            continue;
-        }
-
-        if(pMsgSaveEv->event == MSG_SAVE_WRITE)
-        {
-            write_start();
-
-            myFile.open(CONFIG.bbFile, std::ios::app);//write, append
-
-            if(myFile.is_open())
-            {
-                myFile << pMsgSaveEv->msg << endl;
-                myFile.close();
-            }
-
-            write_end();
-
-        }
-        else if(pMsgSaveEv->event == MSG_SAVE_REPLACE)
-        {
-            long posLineStart;
-            string line, numberSaved,numberMsg;
-
-            write_start();
-
-            myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
-            if(myFile.is_open())
-            {
-                while(getline(myFile, line))
-                {
-                    posLineStart = myFile.tellg()-(long)line.length()-(long)1;
-
-                    get_msg_number_byline(numberSaved,line);
-                    get_msg_number_byline(numberMsg, pMsgSaveEv->msg);
-
-                    //cout << "numberSaved:"<<numberSaved<<endl;
-                    //cout << "numberMsg:"<<numberMsg<<endl;
-
-                    //compare message-number
-                    if(numberMsg == numberSaved)
-                    {
-                        //replace
-                        myFile.seekp(posLineStart);
-
-                        myFile << pMsgSaveEv->msg;
-
-                        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                            cout << "replace msg saved successfully!" << endl;
-
-                        break;
-                    }
-                }
-
-                myFile.close();
-            }
-
-            write_end();
-        }
-        else if(pMsgSaveEv->event == MSG_SAVE_REPLACE_PLUS)
-        {
-            long posLineStart;
-            string line, numberSaved,numberMsg;
-
-            write_start();
-
-            myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
-            if(myFile.is_open())
-            {
-                while(getline(myFile, line))
-                {
-                    posLineStart = myFile.tellg()-(long)line.length()-(long)1;
-
-                    get_msg_number_byline(numberSaved,line);
-                    get_msg_number_byline(numberMsg, pMsgSaveEv->msg);
-
-                    //cout << "numberSaved:"<<numberSaved<<endl;
-                    //cout << "numberMsg:"<<numberMsg<<endl;
-
-                    //compare message-number
-                    if(numberMsg == numberSaved)
-                    {
-                        //replace
-                        myFile.seekp(posLineStart);
-
-                        myFile << pMsgSaveEv->msg;
-
-                        if(line.length() > pMsgSaveEv->msg.length())
-                        {
-                            string str = string(line.length() - pMsgSaveEv->msg.length(), ' ');
-
-                            myFile << str;
-                        }
-
-                        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                            cout << "replace msg saved successfully!" << endl;
-
-                        break;
-                    }
-                }
-
-                myFile.close();
-            }
-
-            write_end();
-        }
-
-        delete pMsgSaveEv;
-    }
-
-    return uargv;
-}
 
 int create_thread_pool()
 {
@@ -336,24 +227,10 @@ int create_thread_pool()
         pthread_create(&threadPool[i], NULL, handle_client_event, NULL);
     }
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "client event thread pool created!" << endl;
-
     return SUCCESS;
 }
 
-int create_msg_save_thread()
-{
-    pthread_t threadMsgSave;
 
-    pthread_create(&threadMsgSave, NULL, handle_msg_save_event, NULL);
-
-
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "client msg save thread created!" << endl;
-
-    return SUCCESS;
-}
 
 
 

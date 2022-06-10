@@ -33,42 +33,4 @@ bool isClientEventQueueEmpty();
 
 
 
-int init_bbfile_access_semahpores();
-
-void read_start();
-
-void read_end();
-
-void write_start();
-
-void write_end();
-
-
-
-
-typedef enum msgSaveEv
-{
-    MSG_SAVE_WRITE = 1,
-    MSG_SAVE_REPLACE,
-    MSG_SAVE_REPLACE_PLUS
-
-}msgSaveEv;
-
-typedef struct _msgSaveEvent
-{
-    msgSaveEv event;
-    std::string msg;
-
-    STAILQ_ENTRY(_msgSaveEvent) p;
-
-}msgSaveEvent;
-
-int create_msg_save_event_queue();
-
-void enMsgSaveEventQueue(msgSaveEvent *pMsgSaveEv);
-
-msgSaveEvent *deMsgSaveEventQueue();
-
-bool isMsgSaveEventQueueEmpty();
-
 #endif // MYQUEUE_H_INCLUDED
