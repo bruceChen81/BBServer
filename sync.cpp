@@ -3,10 +3,13 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <string>
 
 #include "common.h"
 #include "config.h"
 #include "list.h"
+#include "connection.h"
+#include "queue.h"
 #include "sync.h"
 
 
@@ -15,292 +18,199 @@ using std::cout;
 using std::endl;
 using std::string;
 
-int sync_connections[MAX_SYNC_CONN];
 
-fd_set sync_fd_set;
-
-
-
-int create_sync_server_sock()
+int init_sync_server_list()
 {
-    int fd = -1;
+    std::size_t pos, pos1, pos2;
+    bool keepsearching = true;
 
-    fd = socket(AF_INET, SOCK_STREAM, 0);
+    string peers = string(CONFIG.peers);
 
-    CHECK_EXIT(fd);
-
-    //bind
-    sockaddr_in hint;
-    hint.sin_family = AF_INET;
-    hint.sin_port = htons(CONFIG.syncPort);
-    hint.sin_addr.s_addr = INADDR_ANY;
-
-    CHECK_EXIT(bind(fd,(sockaddr *)&hint, sizeof(hint)));
-
-    //listen(listeningSock, SOMAXCONN);
-    CHECK_EXIT(listen(fd, MAX_SYNC_CONN));
-
-    return fd;
-}
-
-int start_sync_server()
-{
-    int server_fd, ret;
-
-    int fd, new_fd, bytesRecved, bytesSend;
-
-    sockaddr_in clientAddr;
-    socklen_t clientAddrSize = sizeof(clientAddr);
-
-    struct timeval tv;
-    tv.tv_sec = 1; //1 second
-    tv.tv_usec = 0;
-
-    char buf[1024];
-    memset(buf, 0, sizeof(buf));
-
-    sync_conn_init();
-
-    //create server listening socket
-    server_fd = create_sync_server_sock();
-
-    CHECK_EXIT(server_fd);
-
-    sync_conn_add(server_fd);
-
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
-        cout << "Sync server created complete, listening --------->" << endl<<endl;
-
-    while(true)
+    if(peers.empty())
     {
-        FD_ZERO(&sync_fd_set);
+        cout << "No sync peer configured!" << endl;
+        return -1;
+    }
 
-        sync_conn_set_fdset(&sync_fd_set);
+    create_sync_server_list();
 
-        //Invoke select()
-        ret = select(FD_SETSIZE, &sync_fd_set, NULL, NULL, &tv);
+    pos = 0;
 
-        CHECK(ret);
+    string serverip, serverport;
 
-        if (ret >= 0)
+    while(keepsearching)
+    {
+        serverip.clear();
+        serverport.clear();
+
+        pos1 = peers.find(":", pos);
+
+        if(pos1 != string::npos)
         {
-            if(FD_ISSET(server_fd, &sync_fd_set))//check if the fd with event is the sever fd, accept new connection
+            pos2 = peers.find(" ", pos1);
+
+            if(pos2 != string::npos)
             {
-                //accept
-                new_fd = accept(server_fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
+                serverip += peers.substr(pos, pos1-pos);
+                serverport += peers.substr(pos1+1, pos2-pos1-1);
 
-                CHECK(new_fd);
-
-                if(new_fd >= 0)
-                {
-                    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                        cout << "Sync server: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
-
-                    //add new fd to fd set
-                    sync_conn_add(new_fd);
-
-                    //add new client to client list
-//                    clientInfo *pClient = new clientInfo;
-//                    memset((void *)pClient, 0, sizeof(clientInfo));
-//
-//                    pClient->fd = new_fd;
-//                    strcpy(pClient->ip, inet_ntoa(clientAddr.sin_addr));
-//                    pClient->port = ntohs(clientAddr.sin_port);
-//
-//                    client_list_add(pClient);
-
-                    //send greeting
-                    send(new_fd, "Hello",strlen("Hello"), 0);
-            }
+                pos = pos2+(long)1; //search next : from pos2
             }
             else
             {
-                //check if the fd with event is a non-server fd, then reveive data
-                for(int i=1; i<MAX_SYNC_CONN; i++)
-                {
-                    if((sync_connections[i] > 0) && FD_ISSET(sync_connections[i], &sync_fd_set))
-                    {
-                        //receive
-
-                        bytesRecved = recv(sync_connections[i], buf, sizeof(buf), 0);
-
-                        CHECK(bytesRecved);
-
-                        if (bytesRecved == 0) //client disconnected, delete
-                        {
-                            sync_conn_del(fd);
-
-                            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                                //cout << "Sync server:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
-                                cout << "Sync server disconnected!" << endl;
-
-                        }
-                        else if (bytesRecved > 0)
-                        {
-                            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                            {
-                                //cout << "Recved sync msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: "
-                                 //    << string(buf, 0, bytesRecved)<< endl;
-
-                                 cout << "Recved sync msg [" << bytesRecved << " Bytes]: " << string(buf, 0, bytesRecved)<< endl;
-                            }
-
-                        }
-
-                    }
-                }
+                //the last peer
+                serverip += peers.substr(pos, pos1-pos);
+                serverport += peers.substr(pos1+(long)1, peers.length()-pos1);
+                keepsearching = false;
             }
+
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "init_sync_server_list find server:" << serverip <<":"<<serverport<< endl;
+
+            //add to server list
+            syncServerInfo *pServer = new syncServerInfo;
+
+            pServer->fd = -1;
+
+            //if config hostname, use gethostbyname to convert to ip ???
+            pServer->ip += serverip;
+
+            pServer->port = atoi(serverport.c_str());
+            pServer->state = SYNC_DISCONNECT;
+
+            sync_server_list_add(pServer);
         }
-
-        usleep(1000);
-
-    }//while()
-
-    // close all sockets
-    //conn_close_all();
+        else
+        {
+            keepsearching = false;
+        }
+    }
 
     return 0;
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-void sync_conn_init()
+int sync_connect_to_server(string& ip, unsigned int port)
 {
-    unsigned int i;
+    int sockfd, connfd, ret;
+    sockaddr_in servaddr, clientaddr;
 
-    for (i=0;i<MAX_SYNC_CONN;i++)
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    CHECK_EXIT(sockfd);
+
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr(ip.c_str());
+    servaddr.sin_port = htons(port);
+
+    ret = connect(sockfd, (sockaddr *)&servaddr, sizeof(servaddr));
+
+    CHECK(ret);
+
+    if(ret == 0)
     {
-        sync_connections[i] = -1;
+        cout << "connected to sync server:" <<ip<<":"<<port<<endl;
+    }
+    else
+    {
+        cout << "failed to connect to sync server:" <<ip<<":"<<port<<endl;
+
+        return -1;
     }
 
-    FD_ZERO(&sync_fd_set);
+    //connected
+    conn_add(sockfd);
 
-    return;
+
+    //add new client to client list
+    clientInfo *pClient = new clientInfo;
+    memset((void *)pClient, 0, sizeof(clientInfo));
+
+    pClient->fd = sockfd;
+    strcpy(pClient->ip, ip.c_str());
+    pClient->port = port;
+    pClient->type = CLIENT_SYNC;
+
+    client_list_add(pClient);
+
+    return sockfd;
 }
 
-void sync_conn_set_fdset(fd_set *pFdSet)
+
+void *handle_data_sync_event(void *arg)
 {
-    unsigned int i;
+    char *uargv = nullptr;
 
-    if(!pFdSet)
-    {
-        return;
-    }
+    dataSyncEvent *pDataSyncEv;
+    syncServerInfo *pServer;
 
-    for(i=0;i<MAX_SYNC_CONN;i++)
+    while(true)
     {
-        if(sync_connections[i] >= 0)
+        pDataSyncEv = nullptr;
+
+        pDataSyncEv = deDataSyncEventQueue();
+
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout << "handle_data_sync_event: "<<pDataSyncEv->msg << endl;
+
+        if(nullptr == pDataSyncEv)
         {
-            FD_SET(sync_connections[i], pFdSet);
+            continue;
         }
-    }
 
-    return;
-}
 
-bool sync_conn_is_exist(int fd)
-{
-    if(fd < 0)
-    {
-        return false;
-    }
-
-    for (int i=0;i<MAX_SYNC_CONN;i++)
-    {
-        if(sync_connections[i] == fd)
+        if(sync_server_list_empty())
         {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void sync_conn_add(int fd)
-{
-    unsigned int i;
-
-    if(sync_conn_is_exist(fd))
-    {
-        return;
-    }
-
-    for (i=0;i<MAX_SYNC_CONN;i++)
-    {
-        if(sync_connections[i] < 0)
-        {
-            sync_connections[i] = fd;
-
+            cout << "sync_server_list_empty"<<endl;
             break;
         }
-    }
 
-    FD_SET(fd, &sync_fd_set);
+        pServer = sync_server_list_get_first();
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
-        cout << "sync connection add fd:" <<fd<<endl;
-
-    return;
-}
-
-void sync_conn_del(int fd)
-{
-    unsigned int i;
-
-    if(!sync_conn_is_exist(fd))
-    {
-        return;
-    }
-
-    CHECK(close(fd));
-
-    FD_CLR(fd, &sync_fd_set);
-
-    for (i=0;i<MAX_SYNC_CONN;i++)
-    {
-        if(sync_connections[i] == fd)
+        while(pServer != nullptr)
         {
-            sync_connections[i] = -1;
+            //check server state
+            if(pServer->state == SYNC_DISCONNECT)
+            {
+                if(sync_connect_to_server(pServer->ip, pServer->port) >= 0)
+                {
+                    sync_server_list_set_state(pServer, SYNC_IDLE);
+                }
+                else
+                {
+                    //connect error, abort
+                }
+            }
 
-            //break;
+            pServer = sync_server_list_get_next(pServer);
         }
-    }
 
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
-        cout << "sync connection del fd:" <<fd<<endl;
 
-    return;
-}
 
-void sync_conn_close_all()
-{
-    unsigned int i;
-
-    FD_ZERO(&sync_fd_set);
-
-    for (i=0;i<MAX_SYNC_CONN;i++)
-    {
-        if(sync_connections[i] > 0)
+        if(pDataSyncEv->event == DATA_SYNC_WRITE)
         {
-            CHECK(close(sync_connections[i]));
-            sync_connections[i] = -1;
+
+
         }
+        else if(pDataSyncEv->event == DATA_SYNC_REPLACE)
+        {
+
+
+        }
+
+
+        delete pDataSyncEv;
     }
 
-
-    return;
+    return uargv;
 }
+
+
+
+
+
+
 
 
 

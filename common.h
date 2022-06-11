@@ -26,7 +26,7 @@ int create_thread_pool();
 
 void *handle_client_event(void *arg);
 
-void *handle_data_sync_event(void *arg);
+
 
 int create_data_sync_thread();
 

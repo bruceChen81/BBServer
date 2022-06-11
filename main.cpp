@@ -96,9 +96,15 @@ int main(int argc, char *argv[])
             cout << "Init bbfile access control semaphores success!" << endl;
     }
 
-    //start_conn_service();
+    if(init_sync_server_list() >= 0)
+    {
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Init sync server list success!" << endl;
+    }
 
-    start_sync_server();
+    start_conn_service();
+
+
 
     return 0;
 }
@@ -119,6 +125,7 @@ void *handle_client_event(void *arg)
     clientInfo *pClient = nullptr;
 
     clientEv evType;
+    clientType cliType;
 
     char buf[1024];
 
@@ -137,7 +144,9 @@ void *handle_client_event(void *arg)
         }
 
         evType = pClientEv->event;
+        cliType = pClientEv->type;
         fd = pClientEv->fd;
+
         delete pClientEv;
 
         if(evType == EV_ACCEPT)
@@ -161,11 +170,20 @@ void *handle_client_event(void *arg)
                 pClient->fd = new_fd;
                 strcpy(pClient->ip, inet_ntoa(clientAddr.sin_addr));
                 pClient->port = ntohs(clientAddr.sin_port);
+                pClient->type = cliType;
 
                 client_list_add(pClient);
 
                 //send greeting
-                send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0);
+                if(cliType == CLIENT_USER)
+                {
+                    send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0);
+                }
+                else if(cliType == CLIENT_SYNC)
+                {
+                    //set state
+                    send(new_fd, "hello sync",strlen("hello sync"), 0);
+                }
             }
         }
         else if(evType == EV_RECV)
@@ -206,21 +224,31 @@ void *handle_client_event(void *arg)
 
                 response.clear();
 
-                process_msg(pClient,buf,bytesRecved, response);
-
-                response.append("\n");
-
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                    cout << "Send response:" << response << endl;
-
-                bytesSend = send(fd,response.c_str(),response.size(),0);
-                CHECK(bytesSend);
-
-                // if QUIT cmd, disconnet the client
-                if(0 == response.compare(0, response.size()-2, "4.0 BYE"))
+                if(pClient->type = CLIENT_USER)
                 {
-                    //conn_del(pClient->fd);
-                    //client_list_del(pClient);
+                    process_msg(pClient,buf,bytesRecved, response);
+                }
+                else if(pClient->type == CLIENT_SYNC)
+                {
+                    process_sync_msg(pClient,buf,bytesRecved, response);
+                }
+
+                if(!response.empty())
+                {
+                    response.append("\n");
+
+                    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                        cout << "Send response:" << response << endl;
+
+                    bytesSend = send(fd,response.c_str(),response.size(),0);
+                    CHECK(bytesSend);
+
+                    // if QUIT cmd, disconnet the client
+                    if(0 == response.compare(0, response.size()-2, "4.0 BYE"))
+                    {
+                        //conn_del(pClient->fd);
+                        //client_list_del(pClient);
+                    }
                 }
             }
         }
@@ -231,43 +259,7 @@ void *handle_client_event(void *arg)
 
 
 
-void *handle_data_sync_event(void *arg)
-{
-    char *uargv = nullptr;
 
-    dataSyncEvent *pDataSyncEv;
-
-    while(true)
-    {
-        pDataSyncEv = nullptr;
-
-        pDataSyncEv = deDataSyncEventQueue();
-
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout << "handle_data_sync_event: "<<pDataSyncEv->msg << endl;
-
-        if(nullptr == pDataSyncEv)
-        {
-            continue;
-        }
-
-        if(pDataSyncEv->event == DATA_SYNC_WRITE)
-        {
-
-
-        }
-        else if(pDataSyncEv->event == DATA_SYNC_REPLACE)
-        {
-
-
-        }
-
-
-        delete pDataSyncEv;
-    }
-
-    return uargv;
-}
 
 
 

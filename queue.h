@@ -6,6 +6,8 @@
 #include <sys/queue.h>
 #include <pthread.h>
 
+#include "list.h"
+
 
 //client event queue
 typedef enum clientEv
@@ -19,6 +21,7 @@ typedef struct _clientEvent
 {
     clientEv event;
     int fd;
+    clientType type;
     sockaddr_in clientAddr;
     STAILQ_ENTRY(_clientEvent) p;
 

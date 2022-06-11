@@ -24,6 +24,18 @@ int msgNumber = 0;
 
 pthread_mutex_t clientMsgNoLock;
 
+
+int process_sync_msg(clientInfo *pClient, char *buf, int length, string& response)
+{
+    string msg = string(buf,length);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "process_sync_msg: "<< msg << endl;
+
+    return 0;
+
+}
+
 int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
     std::size_t pos1, pos2;

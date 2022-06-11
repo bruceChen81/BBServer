@@ -17,6 +17,8 @@ void conn_del(int fd);
 
 void conn_close_all();
 
+int create_tcp_server_sock(unsigned int port);
+
 int start_conn_service();
 
 

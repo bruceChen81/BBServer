@@ -10,6 +10,8 @@
 
 int process_msg(clientInfo *pClient, char *buf, int length, std::string& response);
 
+int process_sync_msg(clientInfo *pClient, char *buf, int length, std::string& response);
+
 int get_new_msg_number(std::string& strNumber);
 
 int get_msg_number_byline(std::string& strNumber, std::string& line);

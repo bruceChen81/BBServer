@@ -3,9 +3,22 @@
 
 #include <sys/queue.h>
 
+#include "sync.h"
+
+
+typedef enum clientType
+{
+    CLIENT_USER = 1,
+    CLIENT_SYNC
+
+}clientType;
+
+
+
 typedef struct _clientInfo
 {
     int fd;
+    clientType type;
     char name[64];
     //std::string name;
     char ip[32];
@@ -29,7 +42,18 @@ int client_list_clear();
 
 clientInfo *client_list_find(int fd);
 
+clientInfo *client_list_get_first();
+
+clientInfo *client_list_get_next(clientInfo *pClient);
+
 int client_list_save_name(int fd, const char *str);
+
+bool client_list_empty();
+
+
+
+
+
 
 
 
@@ -37,10 +61,10 @@ int client_list_save_name(int fd, const char *str);
 typedef struct _syncServerInfo
 {
     int fd;
-    std::string name;
+    std::string hostname;
     std::string ip;
     unsigned int port;
-    unsigned int msgNo;
+    syncServerState state;
 
     LIST_ENTRY(_syncServerInfo) p;
 
@@ -54,7 +78,15 @@ int sync_server_list_del(syncServerInfo *psyncServerInfo);
 
 int sync_server_list_clear();
 
+bool sync_server_list_empty();
+
+syncServerInfo *sync_server_list_get_first();
+
+syncServerInfo *sync_server_list_get_next(syncServerInfo *pServer);
+
 syncServerInfo *sync_server_list_find(int fd);
+
+int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state);
 
 
 #endif // LIST_H_INCLUDED

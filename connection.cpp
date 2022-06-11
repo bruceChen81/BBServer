@@ -9,6 +9,7 @@
 #include "queue.h"
 #include "connection.h"
 #include "list.h"
+#include "sync.h"
 
 using std::cout;
 using std::endl;
@@ -21,7 +22,7 @@ fd_set read_fd_set;
 pthread_mutex_t clientConnLock;
 
 
-int create_tcp_server_sock()
+int create_tcp_server_sock(unsigned int port)
 {
     int fd = -1;
 
@@ -32,7 +33,7 @@ int create_tcp_server_sock()
     //bind
     sockaddr_in hint;
     hint.sin_family = AF_INET;
-    hint.sin_port = htons(CONFIG.bbPort);
+    hint.sin_port = htons(port);
     hint.sin_addr.s_addr = INADDR_ANY;
 
     CHECK_EXIT(bind(fd,(sockaddr *)&hint, sizeof(hint)));
@@ -45,7 +46,7 @@ int create_tcp_server_sock()
 
 int start_conn_service()
 {
-    int server_fd, ret;
+    int server_fd, sync_server_fd, ret;
 
     struct timeval tv;
     tv.tv_sec = 1; //1 second
@@ -54,14 +55,29 @@ int start_conn_service()
     conn_init();
 
     //create server listening socket
-    server_fd = create_tcp_server_sock();
+    server_fd = create_tcp_server_sock(CONFIG.bbPort);
 
     CHECK_EXIT(server_fd);
 
     conn_add(server_fd);
 
+    //create sync server listening socket
+    //start_sync_server();
+    sync_server_fd = create_tcp_server_sock(CONFIG.syncPort);
+
+    CHECK_EXIT(sync_server_fd);
+
+    conn_add(sync_server_fd);
+
+    cout << "server_fd:" << server_fd<<"  sync fd:"<<sync_server_fd<<endl;
+
+
     if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
+    {
+        cout << "Sync server created complete, listening --------->" << endl;
         cout << "Server startup complete, waiting for client --------->" << endl<<endl;
+    }
+
 
     while(true)
     {
@@ -83,6 +99,18 @@ int start_conn_service()
 
                 pClientEv->event = EV_ACCEPT;
                 pClientEv->fd = server_fd;
+                pClientEv->type = CLIENT_USER;
+
+                enClientEventQueue(pClientEv);
+            }
+            else if(FD_ISSET(sync_server_fd, &read_fd_set))//check if the fd with event is the sync sever fd, accept new connection
+            {
+                //en client event queue, to accept
+                clientEvent *pClientEv = new clientEvent;
+
+                pClientEv->event = EV_ACCEPT;
+                pClientEv->fd = sync_server_fd;
+                pClientEv->type = CLIENT_SYNC;
 
                 enClientEventQueue(pClientEv);
             }
@@ -112,8 +140,8 @@ void conn_check_fd_set(fd_set *pFdSet)
         return;
     }
 
-    // do not check server fd:connections[0]
-    for(i=1;i<MAX_CONN;i++)
+    // do not check server fd:connections[0] and [1]
+    for(i=2;i<MAX_CONN;i++)
     {
         if((connections[i] > 0) && FD_ISSET(connections[i], pFdSet))
         {

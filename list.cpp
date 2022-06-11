@@ -215,6 +215,23 @@ int client_list_save_name(int fd, const char *str)
 
 }
 
+bool client_list_empty()
+{
+    return LIST_EMPTY(&clientList);
+}
+
+clientInfo *client_list_get_first()
+{
+    return LIST_FIRST(&clientList);
+
+}
+
+clientInfo *client_list_get_next(clientInfo *pClient)
+{
+    return LIST_NEXT(pClient,p);
+}
+
+
 
 
 
@@ -246,13 +263,28 @@ int sync_server_list_add(syncServerInfo *psyncServerInfo)
 
     pthread_mutex_lock(&syncServerListLock);
 
-    LIST_INSERT_HEAD(&syncServerList, psyncServerInfo, p);
+    syncServerInfo *np = LIST_FIRST(&syncServerList);
+
+    if(np == nullptr)
+    {
+        LIST_INSERT_HEAD(&syncServerList, psyncServerInfo, p);
+    }
+    else
+    {
+        while(LIST_NEXT(np, p) != nullptr)
+        {
+            np = LIST_NEXT(np, p);
+        }
+
+        //insert the last
+        LIST_INSERT_AFTER(np, psyncServerInfo, p);
+    }
 
     pthread_mutex_unlock(&syncServerListLock);
 
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "syncServer_list_add, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
+        cout << "sync_server_list_add, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
 
     return 0;
 
@@ -272,7 +304,7 @@ int sync_server_list_del(syncServerInfo *psyncServerInfo)
     pthread_mutex_unlock(&syncServerListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "syncServer_list_del, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
+        cout << "sync_server_list_del, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
 
     delete psyncServerInfo;
 
@@ -307,13 +339,48 @@ syncServerInfo *sync_server_list_find(int fd)
         if(np->fd == fd)
         {
             if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                cout << "syncServer_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->name<<endl;
+                cout << "sync_server_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->hostname<<endl;
 
             return np;
         }
     }
 
     return nullptr;
+}
+
+bool sync_server_list_empty()
+{
+    return LIST_EMPTY(&syncServerList);
+}
+
+syncServerInfo *sync_server_list_get_first()
+{
+    return LIST_FIRST(&syncServerList);
+
+}
+
+syncServerInfo *sync_server_list_get_next(syncServerInfo *pServer)
+{
+    return LIST_NEXT(pServer,p);
+}
+
+int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state)
+{
+    if(!pServer)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    pServer->state = state;
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "sync_server_set_state [" <<state<<"] fd:" << pServer->fd << " IP:" << pServer->ip << " Port:" << pServer->port <<endl;
+
+    return 1;
 }
 
 
