@@ -32,4 +32,29 @@ clientInfo *client_list_find(int fd);
 int client_list_save_name(int fd, const char *str);
 
 
+
+
+typedef struct _syncServerInfo
+{
+    int fd;
+    std::string name;
+    std::string ip;
+    unsigned int port;
+    unsigned int msgNo;
+
+    LIST_ENTRY(_syncServerInfo) p;
+
+}syncServerInfo;
+
+int create_sync_server_list();
+
+int sync_server_list_add(syncServerInfo *psyncServerInfo);
+
+int sync_server_list_del(syncServerInfo *psyncServerInfo);
+
+int sync_server_list_clear();
+
+syncServerInfo *sync_server_list_find(int fd);
+
+
 #endif // LIST_H_INCLUDED

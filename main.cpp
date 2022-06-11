@@ -28,6 +28,7 @@
 #include "list.h"
 #include "msg.h"
 #include "semaphore.h"
+#include "sync.h"
 
 using std::cout;
 using std::endl;
@@ -95,7 +96,9 @@ int main(int argc, char *argv[])
             cout << "Init bbfile access control semaphores success!" << endl;
     }
 
-    start_conn_service();
+    //start_conn_service();
+
+    start_sync_server();
 
     return 0;
 }

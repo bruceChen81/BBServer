@@ -1,4 +1,4 @@
-OBJS = main.o config.o connection.o queue.o list.o msg.o semaphore.o
+OBJS = main.o config.o connection.o queue.o list.o msg.o semaphore.o sync.o
 CC = g++
 FLAGS = -g -Wall -Wno-literal-suffix -c
 
@@ -27,6 +27,9 @@ msg.o: msg.cpp
 
 semaphore.o: semaphore.cpp
 	$(CC) $(FLAGS) semaphore.cpp
+
+sync.o: sync.cpp
+	$(CC) $(FLAGS) sync.cpp
 
 
 

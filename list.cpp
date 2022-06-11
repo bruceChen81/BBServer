@@ -220,6 +220,105 @@ int client_list_save_name(int fd, const char *str)
 
 
 
+LIST_HEAD(syncServerInfoHead, _syncServerInfo) syncServerList
+        = LIST_HEAD_INITIALIZER(syncServerList);
+
+pthread_mutex_t syncServerListLock;
+
+int create_sync_server_list()
+{
+    if (pthread_mutex_init(&syncServerListLock, NULL) != 0)
+    {
+        std::cout << "init syncServerListLock failed!" << std::endl;
+    }
+
+    LIST_INIT(&syncServerList);
+
+    return 0;
+}
+
+int sync_server_list_add(syncServerInfo *psyncServerInfo)
+{
+    if(!psyncServerInfo)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    LIST_INSERT_HEAD(&syncServerList, psyncServerInfo, p);
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "syncServer_list_add, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
+
+    return 0;
+
+}
+
+int sync_server_list_del(syncServerInfo *psyncServerInfo)
+{
+    if(!psyncServerInfo)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    LIST_REMOVE(psyncServerInfo, p);
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "syncServer_list_del, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
+
+    delete psyncServerInfo;
+
+    return 0;
+
+}
+
+int sync_server_list_clear()
+{
+    syncServerInfo *np;
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    while(!LIST_EMPTY(&syncServerList))
+    {
+        np = LIST_FIRST(&syncServerList);
+        LIST_REMOVE(np, p);
+        delete np;
+    }
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+    return 0;
+}
+
+syncServerInfo *sync_server_list_find(int fd)
+{
+    syncServerInfo *np;
+
+    LIST_FOREACH(np, &syncServerList, p)
+    {
+        if(np->fd == fd)
+        {
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "syncServer_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->name<<endl;
+
+            return np;
+        }
+    }
+
+    return nullptr;
+}
+
+
+
+
 
 
 

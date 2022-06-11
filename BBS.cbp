@@ -48,6 +48,8 @@
 		<Unit filename="queue.h" />
 		<Unit filename="semaphore.cpp" />
 		<Unit filename="semaphore.h" />
+		<Unit filename="sync.cpp" />
+		<Unit filename="sync.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>
