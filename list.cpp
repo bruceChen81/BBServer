@@ -126,7 +126,7 @@ int client_list_add(clientInfo *pClientInfo)
     pthread_mutex_unlock(&clientListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "client_list_add, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<endl;
+        cout << "client_list_add, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<" Type:"<<pClientInfo->type<<endl;
 
     return 0;
 
@@ -146,7 +146,7 @@ int client_list_del(clientInfo *pClientInfo)
     pthread_mutex_unlock(&clientListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "client_list_del, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<endl;
+        cout << "client_list_del, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<" Type:"<<pClientInfo->type<<endl;
 
     delete pClientInfo;
 
@@ -181,7 +181,7 @@ clientInfo *client_list_find(int fd)
         if(np->fd == fd)
         {
             if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                cout << "client_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->name<<endl;
+                cout << "client_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" Type:"<<np->type<<" name:"<<np->name<<endl;
 
             return np;
         }
@@ -239,6 +239,7 @@ clientInfo *client_list_get_next(clientInfo *pClient)
 
 LIST_HEAD(syncServerInfoHead, _syncServerInfo) syncServerList
         = LIST_HEAD_INITIALIZER(syncServerList);
+
 
 pthread_mutex_t syncServerListLock;
 
@@ -379,6 +380,25 @@ int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state)
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
                 cout << "sync_server_set_state [" <<state<<"] fd:" << pServer->fd << " IP:" << pServer->ip << " Port:" << pServer->port <<endl;
+
+    return 1;
+}
+
+int sync_server_list_set_fd(syncServerInfo *pServer, int fd)
+{
+    if(!pServer)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    pServer->fd = fd;
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "sync_server_set_fd [" <<fd<<"] IP:" << pServer->ip << " Port:" << pServer->port <<endl;
 
     return 1;
 }

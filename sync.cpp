@@ -89,6 +89,45 @@ int init_sync_server_list()
     return 0;
 }
 
+int init_sync_server_connection()
+{
+    syncServerInfo *pServer;
+    int fd = -1;
+    int initState = 0;
+
+    if(sync_server_list_empty())
+    {
+        cout << "sync_server_list_empty"<<endl;
+        return -1;
+    }
+
+    pServer = sync_server_list_get_first();
+
+    while(pServer != nullptr)
+    {
+        //check server state
+        if(pServer->state == SYNC_DISCONNECT)
+        {
+            fd = sync_connect_to_server(pServer->ip, pServer->port);
+
+            if( fd >= 0)
+            {
+                sync_server_list_set_fd(pServer,fd);
+                sync_server_list_set_state(pServer, SYNC_IDLE);
+            }
+            else
+            {
+                //return -1;
+                initState = -1;
+            }
+        }
+
+        pServer = sync_server_list_get_next(pServer);
+    }
+
+    return initState;
+}
+
 
 int sync_connect_to_server(string& ip, unsigned int port)
 {
@@ -129,9 +168,10 @@ int sync_connect_to_server(string& ip, unsigned int port)
     pClient->fd = sockfd;
     strcpy(pClient->ip, ip.c_str());
     pClient->port = port;
-    pClient->type = CLIENT_SYNC;
+    pClient->type = CLIENT_SYNC_MASTER;
 
     client_list_add(pClient);
+
 
     return sockfd;
 }
@@ -143,6 +183,8 @@ void *handle_data_sync_event(void *arg)
 
     dataSyncEvent *pDataSyncEv;
     syncServerInfo *pServer;
+
+    int ret;
 
     while(true)
     {
@@ -158,32 +200,43 @@ void *handle_data_sync_event(void *arg)
             continue;
         }
 
+        ret = init_sync_server_connection();
 
-        if(sync_server_list_empty())
+        if(ret < 0)
         {
-            cout << "sync_server_list_empty"<<endl;
-            break;
+            //abort sync if one of servers failed
+            cout << "init_sync_server_connection failed!" <<endl;
         }
 
-        pServer = sync_server_list_get_first();
+        //send precommit to sync server list
+
+        syncServerInfo *pServer = sync_server_list_get_first();
 
         while(pServer != nullptr)
         {
             //check server state
-            if(pServer->state == SYNC_DISCONNECT)
+            if(pServer->state == SYNC_IDLE)
             {
-                if(sync_connect_to_server(pServer->ip, pServer->port) >= 0)
-                {
-                    sync_server_list_set_state(pServer, SYNC_IDLE);
-                }
-                else
-                {
-                    //connect error, abort
-                }
+                string response = string("PRECOMMIT");
+
+                CHECK(send(pServer->fd,response.c_str(),response.size(),0));
+
+                sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
+
+            }
+            else
+            {
+                cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
             }
 
             pServer = sync_server_list_get_next(pServer);
         }
+
+        //start timer, when timeout check state
+
+
+
+
 
 
 

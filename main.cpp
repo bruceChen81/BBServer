@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
+#include <signal.h>
 #include <climits>
 
 #include "common.h"
@@ -38,7 +39,13 @@ using std::fstream;
 using std::cin;
 
 
+void handler(int sig, siginfo_t *si, void *uc)
+{
+    cout << "caught signal: " << sig <<endl;
 
+    //signal(sig, SIG_IGN);
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -102,13 +109,86 @@ int main(int argc, char *argv[])
             cout << "Init sync server list success!" << endl;
     }
 
-    start_conn_service();
+    if(create_tcp_connection_thread() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "TCP connection process thread created!" << endl;
+    }
 
+    //sleep(1);
+
+
+
+ /*
+    if(init_sync_server_connection() >= 0)
+    {
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Init sync server connection success!" << endl;
+    }
+
+*/
+    {
+        timer_t timerid;
+        struct sigevent sigev;
+        struct itimerspec timerspec;
+        sigset_t mask;
+        struct sigaction sa;
+
+        sa.sa_flags = SA_SIGINFO;
+        sa.sa_sigaction = handler;
+
+        sigemptyset(&sa.sa_mask);
+        CHECK(sigaction(SIGRTMIN, &sa, NULL));
+
+        //block timer signal
+        sigemptyset(&mask);
+        sigaddset(&mask, SIGRTMIN);
+
+        CHECK(sigprocmask(SIG_SETMASK, &mask, NULL));
+
+        //create timer
+        sigev.sigev_notify = SIGEV_SIGNAL;
+        sigev.sigev_signo = SIGRTMIN;
+        sigev.sigev_value.sival_ptr = &timerid;
+
+        CHECK(timer_create(CLOCK_REALTIME, &sigev, &timerid));
+
+        //start timer
+        timerspec.it_interval.tv_sec = 3;
+        timerspec.it_interval.tv_nsec = 0;
+        timerspec.it_value.tv_sec = 1; //delay
+        timerspec.it_value.tv_nsec = 0;
+
+        CHECK(timer_settime(timerid, 0, &timerspec, NULL));
+
+        //unlock thmer signal
+        CHECK(sigprocmask(SIG_UNBLOCK, &mask, NULL));
+
+
+
+    }
+    string str;
+
+    while(getline(cin, str))
+    {
+        cout <<"Input: "<< str << endl;
+
+        sleep(1);
+    }
 
 
     return 0;
 }
 
+void *handle_tcp_connection(void *arg)
+{
+    char *uargv = nullptr;
+
+
+    start_conn_service();
+
+    return uargv;
+}
 
 
 void *handle_client_event(void *arg)
@@ -177,12 +257,17 @@ void *handle_client_event(void *arg)
                 //send greeting
                 if(cliType == CLIENT_USER)
                 {
-                    send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0);
+                    CHECK(send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0));
                 }
-                else if(cliType == CLIENT_SYNC)
+                else if(cliType == CLIENT_SYNC_MASTER)
                 {
                     //set state
-                    send(new_fd, "hello sync",strlen("hello sync"), 0);
+                    CHECK(send(new_fd, "hello I am master",strlen("hello I am master"), 0));
+                }
+                else if(cliType == CLIENT_SYNC_SLAVE)
+                {
+                    //set state
+                    CHECK(send(new_fd, "hello I am slave",strlen("hello I am slave"), 0));
                 }
             }
         }
@@ -224,13 +309,17 @@ void *handle_client_event(void *arg)
 
                 response.clear();
 
-                if(pClient->type = CLIENT_USER)
+                if(pClient->type == CLIENT_USER)
                 {
-                    process_msg(pClient,buf,bytesRecved, response);
+                    process_client_msg(pClient,buf,bytesRecved, response);
                 }
-                else if(pClient->type == CLIENT_SYNC)
+                else if(pClient->type == CLIENT_SYNC_MASTER)
                 {
-                    process_sync_msg(pClient,buf,bytesRecved, response);
+                    process_sync_master_msg(pClient,buf,bytesRecved, response);
+                }
+                else if(pClient->type == CLIENT_SYNC_SLAVE)
+                {
+                    process_sync_slave_msg(pClient,buf,bytesRecved, response);
                 }
 
                 if(!response.empty())
@@ -273,7 +362,16 @@ int create_thread_pool()
         pthread_create(&threadPool[i], NULL, handle_client_event, NULL);
     }
 
-    return SUCCESS;
+    return 0;
+}
+
+int create_tcp_connection_thread()
+{
+    pthread_t threadConn;
+
+    pthread_create(&threadConn, NULL, handle_tcp_connection, NULL);
+
+    return 0;
 }
 
 int create_data_sync_thread()
@@ -282,7 +380,7 @@ int create_data_sync_thread()
 
     pthread_create(&threadDataSync, NULL, handle_data_sync_event, NULL);
 
-    return SUCCESS;
+    return 0;
 }
 
 

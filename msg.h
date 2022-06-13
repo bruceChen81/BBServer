@@ -8,9 +8,13 @@
 
 
 
-int process_msg(clientInfo *pClient, char *buf, int length, std::string& response);
+int process_client_msg(clientInfo *pClient, char *buf, int length, std::string& response);
 
-int process_sync_msg(clientInfo *pClient, char *buf, int length, std::string& response);
+int process_sync_master_msg(clientInfo *pClient, char *buf, int length, std::string& response);
+
+int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, std::string& response);
+
+
 
 int get_new_msg_number(std::string& strNumber);
 

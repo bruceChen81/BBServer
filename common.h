@@ -24,9 +24,9 @@
 
 int create_thread_pool();
 
-void *handle_client_event(void *arg);
+//void *handle_client_event(void *arg);
 
-
+int create_tcp_connection_thread();
 
 int create_data_sync_thread();
 

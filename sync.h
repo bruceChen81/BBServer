@@ -23,8 +23,10 @@ typedef enum syncServerState
 
 int init_sync_server_list();
 
-int start_sync_server();
+int init_sync_server_connection();
 
 void *handle_data_sync_event(void *arg);
+
+int sync_connect_to_server(std::string& ip, unsigned int port);
 
 #endif // SYNC_H_INCLUDED

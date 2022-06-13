@@ -110,7 +110,7 @@ int start_conn_service()
 
                 pClientEv->event = EV_ACCEPT;
                 pClientEv->fd = sync_server_fd;
-                pClientEv->type = CLIENT_SYNC;
+                pClientEv->type = CLIENT_SYNC_SLAVE;
 
                 enClientEventQueue(pClientEv);
             }

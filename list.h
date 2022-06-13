@@ -9,7 +9,8 @@
 typedef enum clientType
 {
     CLIENT_USER = 1,
-    CLIENT_SYNC
+    CLIENT_SYNC_MASTER,
+    CLIENT_SYNC_SLAVE
 
 }clientType;
 
@@ -70,6 +71,8 @@ typedef struct _syncServerInfo
 
 }syncServerInfo;
 
+
+
 int create_sync_server_list();
 
 int sync_server_list_add(syncServerInfo *psyncServerInfo);
@@ -85,6 +88,8 @@ syncServerInfo *sync_server_list_get_first();
 syncServerInfo *sync_server_list_get_next(syncServerInfo *pServer);
 
 syncServerInfo *sync_server_list_find(int fd);
+
+int sync_server_list_set_fd(syncServerInfo *pServer, int fd);
 
 int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state);
 

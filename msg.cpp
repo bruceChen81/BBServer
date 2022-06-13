@@ -25,18 +25,37 @@ int msgNumber = 0;
 pthread_mutex_t clientMsgNoLock;
 
 
-int process_sync_msg(clientInfo *pClient, char *buf, int length, string& response)
+int process_sync_master_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
     string msg = string(buf,length);
 
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "process_sync_msg: "<< msg << endl;
+        cout << "process_sync_master_msg: "<< msg << endl;
+
+    //5.0 PRECOMMIT ACK
+    //5.1 ERROR PRECOMMIT
+
+    //6.0 COMMIT ACK
+    //6.1 ERROR COMMIT
 
     return 0;
 
 }
 
-int process_msg(clientInfo *pClient, char *buf, int length, string& response)
+int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& response)
+{
+    string msg = string(buf,length);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "process_sync_slave_msg: "<< msg << endl;
+
+    //PRECOMMIT, ABORT, COMMIT WRITE/READ message, SUCCESS, NOT SUCCESSFUL
+
+    return 0;
+
+}
+
+int process_client_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
     std::size_t pos1, pos2;
 
@@ -50,7 +69,7 @@ int process_msg(clientInfo *pClient, char *buf, int length, string& response)
 
 
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "process_msg: "<< msg << endl;
+        cout << "process_client_msg: "<< msg << endl;
 
     //COMMANDS: USER, READ, WRITE, REPLACE, QUIT
 
