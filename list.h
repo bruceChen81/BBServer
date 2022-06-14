@@ -20,6 +20,7 @@ typedef struct _clientInfo
 {
     int fd;
     clientType type;
+    syncState state;
     char name[64];
     //std::string name;
     char ip[32];
@@ -51,7 +52,7 @@ int client_list_save_name(int fd, const char *str);
 
 bool client_list_empty();
 
-
+int sync_set_client_state(clientInfo *pClient, syncState state);
 
 
 
@@ -65,7 +66,7 @@ typedef struct _syncServerInfo
     std::string hostname;
     std::string ip;
     unsigned int port;
-    syncServerState state;
+    syncState state;
 
     LIST_ENTRY(_syncServerInfo) p;
 
@@ -91,7 +92,7 @@ syncServerInfo *sync_server_list_find(int fd);
 
 int sync_server_list_set_fd(syncServerInfo *pServer, int fd);
 
-int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state);
+int sync_server_list_set_state(syncServerInfo *pServer, syncState state);
 
 
 #endif // LIST_H_INCLUDED

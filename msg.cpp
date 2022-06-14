@@ -27,7 +27,24 @@ pthread_mutex_t clientMsgNoLock;
 
 int process_sync_master_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
-    string msg = string(buf,length);
+    string msg;
+
+    syncServerInfo *pServer = sync_server_list_find(pClient->fd);
+
+    if(buf[length-2] == '\r')
+    {
+        msg += string(buf,length-2);
+    }
+    else if(buf[length-1] == '\n')
+    {
+        msg += string(buf,length-1);
+    }
+    else
+    {
+        msg += string(buf,length);
+    }
+
+
 
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
         cout << "process_sync_master_msg: "<< msg << endl;
@@ -38,22 +55,125 @@ int process_sync_master_msg(clientInfo *pClient, char *buf, int length, string& 
     //6.0 COMMIT ACK
     //6.1 ERROR COMMIT
 
+    if(msg == "5.0 PRECOMMIT ACK")
+    {
+        sync_server_list_set_state(pServer, SYNC_M_COMMITED);
+
+        //check if all peers reply ok
+        if(true == sync_check_server_state(SYNC_M_COMMITED))
+        {
+            //send commit message
+
+        }
+    }
+
+    if(msg == "6.0 COMMIT ACK")
+    {
+        sync_server_list_set_state(pServer, SYNC_M_OPERATION_PERFORMED);
+
+        //check if all peers reply ok
+        if(true == sync_check_server_state(SYNC_M_OPERATION_PERFORMED))
+        {
+            //send success or not successful message
+            response += "SUCCESS";
+
+            //set all state back to idle
+        }
+    }
+
     return 0;
 
 }
 
+
 int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
-    string msg = string(buf,length);
+    string msg;
+    fstream myFile;
+
+    if(buf[length-2] == '\r')
+    {
+        msg += string(buf,length-2);
+    }
+    else if(buf[length-1] == '\n')
+    {
+        msg += string(buf,length-1);
+    }
+    else
+    {
+        msg += string(buf,length);
+    }
 
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
         cout << "process_sync_slave_msg: "<< msg << endl;
 
     //PRECOMMIT, ABORT, COMMIT WRITE/READ message, SUCCESS, NOT SUCCESSFUL
 
+    if(msg == "PRECOMMIT")
+    {
+        sync_set_client_state(pClient, SYNC_S_PRECOMMIT_RECEIVED);
+
+        //check bbfile
+
+
+        response += "5.0 PRECOMMIT ACK";
+        //response += "\n";
+        sync_set_client_state(pClient, SYNC_S_PRECOMMIT_ACK);
+
+        return 0;
+    }
+
+    string str1 = string("COMMIT WRITE");
+    string str2 = string("COMMIT REPLACE");
+
+    if(0 == msg.compare(0, str1.length(), str1))
+    {
+        string msgSave = msg.substr(str1.length(), msg.length()-str1.length());
+
+        cout << "sync msg save:" <<msgSave<<endl;
+
+        write_start();
+
+        myFile.open(CONFIG.bbFile, std::ios::app);//write, append
+
+        if(myFile.is_open())
+        {
+            myFile << msgSave;
+            myFile.close();
+
+            response.append("6.0 COMMIT ACK");
+        }
+        else
+        {
+            response.append("6.1 ERROR COMMIT");
+        }
+
+        write_end();
+
+    }
+
+    if(msg.compare(0, str2.length(), str2))
+    {
+
+    }
+
+    if(msg == "SUCCESS")
+    {
+        sync_set_client_state(pClient, SYNC_IDLE);
+
+
+        return 0;
+    }
+
     return 0;
 
 }
+
+
+
+
+
+
 
 int process_client_msg(clientInfo *pClient, char *buf, int length, string& response)
 {
@@ -202,6 +322,48 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
         if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
             cout <<"write msg:"<< msgSave << endl;
 
+        //check sync peers, if configured, first invoke sync
+        if(!sync_server_list_empty())
+        {
+            if(init_sync_server_connection() < 0)
+            {
+                response.append("3.2 ERROR WRITE");
+
+                return 0;
+            }
+            // init successful, send precommit
+
+            sync_send_precommit();
+
+            sleep(2);
+
+            bool ret = sync_check_server_state(SYNC_M_COMMITED);
+
+            if(ret >= 0)
+            {
+                string msgSend = string("WRITE");
+                msgSend += " ";
+                msgSend += msgSave;
+
+                sync_send_commit(msgSend);
+            }
+            else
+            {
+                cout << "sync commited error:" <<ret<<endl;
+            }
+
+            sleep(2);
+
+            if(!sync_check_server_state(SYNC_M_OPERATION_PERFORMED))
+            {
+                response.append("3.2 ERROR WRITE");
+
+                return 0;
+            }
+        }
+
+
+
         //write file
 
         write_start();
@@ -224,7 +386,7 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
         write_end();
 
         //sync data
-        send_data_sync_event(DATA_SYNC_WRITE, msgSave);
+        //send_data_sync_event(DATA_SYNC_WRITE, msgSave);
     }
     else if(arg1 == "REPLACE" || arg1 == "replace")
     {

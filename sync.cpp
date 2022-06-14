@@ -4,6 +4,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <string>
+#include <time.h>
+#include <signal.h>
 
 #include "common.h"
 #include "config.h"
@@ -128,6 +130,78 @@ int init_sync_server_connection()
     return initState;
 }
 
+int sync_send_precommit()
+{
+    //send precommit to sync server list
+    string msg = string("PRECOMMIT");
+    msg += "\n";
+
+    syncServerInfo *pServer = sync_server_list_get_first();
+
+    while(pServer != nullptr)
+    {
+        //check server state
+        if(pServer->state == SYNC_IDLE)
+        {
+            CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
+
+            sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
+
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
+
+        }
+        else
+        {
+            cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
+        }
+
+        pServer = sync_server_list_get_next(pServer);
+    }
+
+    //start timer, when timeout check state
+
+    return 0;
+}
+
+
+int sync_send_commit(string& msgbody)
+{
+    //send commit to sync server list
+    //COMMIT WRITE(REPLACE)/message-number/user/msgbody
+
+    string msg = string("COMMIT");
+    msg += " ";
+    msg += msgbody;
+
+    syncServerInfo *pServer = sync_server_list_get_first();
+
+    while(pServer != nullptr)
+    {
+        //check server state
+        if(pServer->state == SYNC_M_COMMITED)
+        {
+            CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
+
+            sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
+
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
+
+        }
+        else
+        {
+            cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
+        }
+
+        pServer = sync_server_list_get_next(pServer);
+    }
+
+    //start timer, when timeout check state
+
+    return 0;
+}
+
 
 int sync_connect_to_server(string& ip, unsigned int port)
 {
@@ -176,6 +250,24 @@ int sync_connect_to_server(string& ip, unsigned int port)
     return sockfd;
 }
 
+bool sync_check_server_state(syncState state)
+{
+    syncServerInfo *pServer = sync_server_list_get_first();
+
+    while(pServer != nullptr)
+    {
+        //check server state
+        if(pServer->state != state)
+        {
+            return false;
+        }
+
+        pServer = sync_server_list_get_next(pServer);
+    }
+
+    return true;
+}
+
 
 void *handle_data_sync_event(void *arg)
 {
@@ -206,6 +298,8 @@ void *handle_data_sync_event(void *arg)
         {
             //abort sync if one of servers failed
             cout << "init_sync_server_connection failed!" <<endl;
+
+            //break;
         }
 
         //send precommit to sync server list
@@ -217,9 +311,9 @@ void *handle_data_sync_event(void *arg)
             //check server state
             if(pServer->state == SYNC_IDLE)
             {
-                string response = string("PRECOMMIT");
+                string msg = string("PRECOMMIT");
 
-                CHECK(send(pServer->fd,response.c_str(),response.size(),0));
+                CHECK(send(pServer->fd,msg.c_str(),msg.size(),0));
 
                 sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
 
@@ -261,6 +355,64 @@ void *handle_data_sync_event(void *arg)
 
 
 
+
+
+
+void handler(int sig)
+{
+    cout << "caught signal: " << sig <<endl;
+
+    //signal(sig, SIG_IGN);
+
+}
+
+
+
+timer_t start_timer(int t_second)
+{
+    timer_t timerid;
+    struct sigevent se;
+    struct itimerspec timerspec;
+    sigset_t mask;
+    struct sigaction sa;
+
+    //sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = SA_RESTART;
+    //sa.sa_sigaction = handler;
+    sa.sa_handler = handler;
+
+    sigemptyset(&sa.sa_mask);
+    CHECK(sigaction(SIGRTMIN, &sa, NULL));
+
+    //block timer signal
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGRTMIN);
+
+    CHECK(sigprocmask(SIG_SETMASK, &mask, NULL));
+
+    //create timer
+    se.sigev_notify = SIGEV_SIGNAL;
+    se.sigev_signo = SIGRTMIN;
+    se.sigev_value.sival_ptr = &timerid;
+
+
+    CHECK(timer_create(CLOCK_REALTIME, &se, &timerid));
+
+    //start timer
+    timerspec.it_interval.tv_sec = t_second;
+    timerspec.it_interval.tv_nsec = 0;
+    timerspec.it_value.tv_sec = 1; //delay
+    timerspec.it_value.tv_nsec = 0;
+
+    CHECK(timer_settime(timerid, 0, &timerspec, NULL));
+
+    //unlock thmer signal
+    CHECK(sigprocmask(SIG_UNBLOCK, &mask, NULL));
+
+
+
+    return timerid;
+}
 
 
 

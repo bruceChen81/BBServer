@@ -16,6 +16,8 @@ int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, std::stri
 
 
 
+
+
 int get_new_msg_number(std::string& strNumber);
 
 int get_msg_number_byline(std::string& strNumber, std::string& line);
@@ -25,6 +27,8 @@ int get_msg_username_byline(std::string& user, std::string& line);
 int get_msg_body_byline(std::string& msg, std::string& line);
 
 int send_data_sync_event(dataSyncEvType type, std::string& msg);
+
+
 
 
 

@@ -39,13 +39,7 @@ using std::fstream;
 using std::cin;
 
 
-void handler(int sig, siginfo_t *si, void *uc)
-{
-    cout << "caught signal: " << sig <<endl;
 
-    //signal(sig, SIG_IGN);
-
-}
 
 int main(int argc, char *argv[])
 {
@@ -127,46 +121,7 @@ int main(int argc, char *argv[])
     }
 
 */
-    {
-        timer_t timerid;
-        struct sigevent sigev;
-        struct itimerspec timerspec;
-        sigset_t mask;
-        struct sigaction sa;
 
-        sa.sa_flags = SA_SIGINFO;
-        sa.sa_sigaction = handler;
-
-        sigemptyset(&sa.sa_mask);
-        CHECK(sigaction(SIGRTMIN, &sa, NULL));
-
-        //block timer signal
-        sigemptyset(&mask);
-        sigaddset(&mask, SIGRTMIN);
-
-        CHECK(sigprocmask(SIG_SETMASK, &mask, NULL));
-
-        //create timer
-        sigev.sigev_notify = SIGEV_SIGNAL;
-        sigev.sigev_signo = SIGRTMIN;
-        sigev.sigev_value.sival_ptr = &timerid;
-
-        CHECK(timer_create(CLOCK_REALTIME, &sigev, &timerid));
-
-        //start timer
-        timerspec.it_interval.tv_sec = 3;
-        timerspec.it_interval.tv_nsec = 0;
-        timerspec.it_value.tv_sec = 1; //delay
-        timerspec.it_value.tv_nsec = 0;
-
-        CHECK(timer_settime(timerid, 0, &timerspec, NULL));
-
-        //unlock thmer signal
-        CHECK(sigprocmask(SIG_UNBLOCK, &mask, NULL));
-
-
-
-    }
     string str;
 
     while(getline(cin, str))
@@ -252,6 +207,11 @@ void *handle_client_event(void *arg)
                 pClient->port = ntohs(clientAddr.sin_port);
                 pClient->type = cliType;
 
+                if(cliType == CLIENT_USER)
+                {
+                    pClient->state = SYNC_IDLE;
+                }
+
                 client_list_add(pClient);
 
                 //send greeting
@@ -259,11 +219,11 @@ void *handle_client_event(void *arg)
                 {
                     CHECK(send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0));
                 }
-                else if(cliType == CLIENT_SYNC_MASTER)
-                {
-                    //set state
-                    CHECK(send(new_fd, "hello I am master",strlen("hello I am master"), 0));
-                }
+//                else if(cliType == CLIENT_SYNC_MASTER)
+//                {
+//                    //set state
+//                    CHECK(send(new_fd, "hello I am master",strlen("hello I am master"), 0));
+//                }
                 else if(cliType == CLIENT_SYNC_SLAVE)
                 {
                     //set state

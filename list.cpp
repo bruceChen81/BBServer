@@ -8,6 +8,8 @@
 using std::cout;
 using std::endl;
 
+
+
 LIST_HEAD(clientInfoHead, _clientInfo) clientList
         = LIST_HEAD_INITIALIZER(clientList);
 
@@ -231,6 +233,26 @@ clientInfo *client_list_get_next(clientInfo *pClient)
     return LIST_NEXT(pClient,p);
 }
 
+int sync_set_client_state(clientInfo *pClient, syncState state)
+{
+    if(!pClient)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&clientListLock);
+
+    pClient->state = state;
+
+    pthread_mutex_unlock(&clientListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "sync set slave state [" <<state<<"] fd:" << pClient->fd << " IP:" << pClient->ip << " Port:" << pClient->port <<endl;
+
+    return 1;
+}
+
+
 
 
 
@@ -365,7 +387,7 @@ syncServerInfo *sync_server_list_get_next(syncServerInfo *pServer)
     return LIST_NEXT(pServer,p);
 }
 
-int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state)
+int sync_server_list_set_state(syncServerInfo *pServer, syncState state)
 {
     if(!pServer)
     {
@@ -378,8 +400,8 @@ int sync_server_list_set_state(syncServerInfo *pServer, syncServerState state)
 
     pthread_mutex_unlock(&syncServerListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                cout << "sync_server_set_state [" <<state<<"] fd:" << pServer->fd << " IP:" << pServer->ip << " Port:" << pServer->port <<endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "sync set master state [" <<state<<"] fd:" << pServer->fd << " IP:" << pServer->ip << " Port:" << pServer->port <<endl;
 
     return 1;
 }
