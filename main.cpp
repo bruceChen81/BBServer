@@ -84,11 +84,12 @@ int main(int argc, char *argv[])
             cout << "Client event process thread pool created!" << endl;
     }
 
-    if(create_data_sync_thread() >= 0)
-    {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "Data sync event process thread created!" << endl;
-    }
+//    if(create_data_sync_thread() >= 0)
+//    {
+//        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+//            cout << "Data sync event process thread created!" << endl;
+//    }
+
 
 
     if(init_bbfile_access_semahpores() >= 0)
@@ -227,7 +228,7 @@ void *handle_client_event(void *arg)
                 else if(cliType == CLIENT_SYNC_SLAVE)
                 {
                     //set state
-                    CHECK(send(new_fd, "hello I am slave",strlen("hello I am slave"), 0));
+                    //CHECK(send(new_fd, "hello I am slave",strlen("hello I am slave"), 0));
                 }
             }
         }
@@ -287,7 +288,7 @@ void *handle_client_event(void *arg)
                     response.append("\n");
 
                     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                        cout << "Send response:" << response << endl;
+                        cout << "Send response to "<< pClient->ip <<":" << pClient->port <<": " << response << endl;
 
                     bytesSend = send(fd,response.c_str(),response.size(),0);
                     CHECK(bytesSend);

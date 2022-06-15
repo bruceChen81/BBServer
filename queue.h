@@ -41,8 +41,10 @@ bool isClientEventQueueEmpty();
 
 typedef enum dataSyncEvType
 {
-    DATA_SYNC_WRITE = 1,
-    DATA_SYNC_REPLACE
+    SYNC_EV_PRECOMMIT_ACK = 1,
+    SYNC_EV_PRECOMMIT_ERR,
+    SYNC_EV_COMMIT_ACK,
+    SYNC_EV_COMMIT_ERR
 
 }dataSyncEvType;
 

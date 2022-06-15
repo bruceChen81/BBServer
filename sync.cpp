@@ -173,17 +173,62 @@ int sync_send_commit(string& msgbody)
     string msg = string("COMMIT");
     msg += " ";
     msg += msgbody;
+    msg += "\n";
 
     syncServerInfo *pServer = sync_server_list_get_first();
 
     while(pServer != nullptr)
     {
         //check server state
-        if(pServer->state == SYNC_M_COMMITED)
+        if(pServer->state == SYNC_M_PRECOMMITED)
         {
             CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
 
-            sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
+            sync_server_list_set_state(pServer, SYNC_M_COMMITED);
+
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
+
+        }
+        else
+        {
+            cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
+        }
+
+        pServer = sync_server_list_get_next(pServer);
+    }
+
+    //start timer, when timeout check state
+
+    return 0;
+}
+
+int sync_send_success(bool isSuccessful)
+{
+
+    string msg;
+
+    if(isSuccessful)
+    {
+        msg += "SUCCESS";
+    }
+    else
+    {
+        msg += "NOT SUCCESSFUL";
+    }
+
+    msg += "\n";
+
+    syncServerInfo *pServer = sync_server_list_get_first();
+
+    while(pServer != nullptr)
+    {
+        //check server state
+        if(pServer->state == SYNC_M_OPERATION_PERFORMED)
+        {
+            CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
+
+            sync_server_list_set_state(pServer, SYNC_IDLE);
 
             if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
@@ -205,8 +250,8 @@ int sync_send_commit(string& msgbody)
 
 int sync_connect_to_server(string& ip, unsigned int port)
 {
-    int sockfd, connfd, ret;
-    sockaddr_in servaddr, clientaddr;
+    int sockfd, ret;
+    sockaddr_in servaddr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -274,7 +319,7 @@ void *handle_data_sync_event(void *arg)
     char *uargv = nullptr;
 
     dataSyncEvent *pDataSyncEv;
-    syncServerInfo *pServer;
+    //syncServerInfo *pServer;
 
     int ret;
 
@@ -335,16 +380,6 @@ void *handle_data_sync_event(void *arg)
 
 
 
-        if(pDataSyncEv->event == DATA_SYNC_WRITE)
-        {
-
-
-        }
-        else if(pDataSyncEv->event == DATA_SYNC_REPLACE)
-        {
-
-
-        }
 
 
         delete pDataSyncEv;

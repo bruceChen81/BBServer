@@ -103,10 +103,6 @@ int create_data_sync_event_queue()
 
     STAILQ_INIT(&dataSyncEvQueue);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        std::cout << "data sync event Queue created!" << std::endl;
-
-
     return 1;
 }
 
