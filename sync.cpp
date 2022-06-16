@@ -6,6 +6,8 @@
 #include <string>
 #include <time.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 #include "common.h"
 #include "config.h"
@@ -38,11 +40,11 @@ int init_sync_server_list()
 
     pos = 0;
 
-    string serverip, serverport;
+    string server, serverIp, serverport;
 
     while(keepsearching)
     {
-        serverip.clear();
+        server.clear();
         serverport.clear();
 
         pos1 = peers.find(":", pos);
@@ -53,7 +55,7 @@ int init_sync_server_list()
 
             if(pos2 != string::npos)
             {
-                serverip += peers.substr(pos, pos1-pos);
+                server += peers.substr(pos, pos1-pos);
                 serverport += peers.substr(pos1+1, pos2-pos1-1);
 
                 pos = pos2+(long)1; //search next : from pos2
@@ -61,21 +63,32 @@ int init_sync_server_list()
             else
             {
                 //the last peer
-                serverip += peers.substr(pos, pos1-pos);
+                server += peers.substr(pos, pos1-pos);
                 serverport += peers.substr(pos1+(long)1, peers.length()-pos1);
                 keepsearching = false;
             }
 
             if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                cout << "init_sync_server_list find server:" << serverip <<":"<<serverport<< endl;
+                cout << "init_sync_server_list find server:" << server <<":"<<serverport<< endl;
 
             //add to server list
             syncServerInfo *pServer = new syncServerInfo;
 
             pServer->fd = -1;
 
-            //if config hostname, use gethostbyname to convert to ip ???
-            pServer->ip += serverip;
+            //if config hostname, use gethostbyname to convert to ip
+            struct hostent *host = gethostbyname(server.c_str());
+
+            if(host)
+            {
+                serverIp += inet_ntoa(*((struct in_addr**)host->h_addr_list)[0]);
+            }
+            else
+            {
+                serverIp += server;
+            }
+
+            pServer->ip += serverIp;
 
             pServer->port = atoi(serverport.c_str());
             pServer->state = SYNC_DISCONNECT;
@@ -140,23 +153,65 @@ int sync_send_precommit()
 
     while(pServer != nullptr)
     {
-        //check server state
-        if(pServer->state == SYNC_IDLE)
-        {
-            CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
+        int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
+        CHECK(ret);
 
+        if(ret >= 0)
+        {
             sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
 
             if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
-
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else
         {
-            cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
+            return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
+    }
+
+    if(sync_check_server_state(SYNC_M_PRECOMMIT_MULTICASTED))
+    {
+        sync_set_master_state(SYNC_M_PRECOMMIT_MULTICASTED);
+    }
+
+    //start timer, when timeout check state
+
+    return 0;
+}
+
+int sync_send_abort()
+{
+    //send abort to sync server list
+    string msg = string("ABORT");
+    msg += "\n";
+
+    syncServerInfo *pServer = sync_server_list_get_first();
+
+    while(pServer != nullptr)
+    {
+        int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
+        CHECK(ret);
+
+        if(ret >= 0)
+        {
+            sync_server_list_set_state(pServer, SYNC_IDLE);
+
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
+        }
+        else
+        {
+            return -1;
+        }
+
+        pServer = sync_server_list_get_next(pServer);
+    }
+
+    if(sync_check_server_state(SYNC_IDLE))
+    {
+        sync_set_master_state(SYNC_IDLE);
     }
 
     //start timer, when timeout check state
@@ -179,23 +234,28 @@ int sync_send_commit(string& msgbody)
 
     while(pServer != nullptr)
     {
-        //check server state
-        if(pServer->state == SYNC_M_PRECOMMITED)
-        {
-            CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
+        int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
+        CHECK(ret);
 
+        if(ret >= 0)
+        {
             sync_server_list_set_state(pServer, SYNC_M_COMMITED);
 
             if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
 
         }
         else
         {
-            cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
+            return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
+    }
+
+    if(sync_check_server_state(SYNC_M_COMMITED))
+    {
+        sync_set_master_state(SYNC_M_COMMITED);
     }
 
     //start timer, when timeout check state
@@ -210,11 +270,11 @@ int sync_send_success(bool isSuccessful)
 
     if(isSuccessful)
     {
-        msg += "SUCCESS";
+        msg += "END SUCCESS";
     }
     else
     {
-        msg += "NOT SUCCESSFUL";
+        msg += "END UNSUCCESS";
     }
 
     msg += "\n";
@@ -223,23 +283,27 @@ int sync_send_success(bool isSuccessful)
 
     while(pServer != nullptr)
     {
-        //check server state
-        if(pServer->state == SYNC_M_OPERATION_PERFORMED)
-        {
-            CHECK(send(pServer->fd, msg.c_str(), msg.size(),0));
+        int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
+        CHECK(ret);
 
+        if(ret >= 0)
+        {
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
             if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<": " <<msg<< endl;
-
+                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else
         {
-            cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
+            return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
+    }
+
+    if(sync_check_server_state(SYNC_IDLE))
+    {
+        sync_set_master_state(SYNC_IDLE);
     }
 
     //start timer, when timeout check state
@@ -293,6 +357,20 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
 
     return sockfd;
+}
+
+syncState sync_get_master_state()
+{
+    syncServerInfo *pServer = sync_server_list_get_first();
+
+    if(pServer)
+    {
+        return pServer->masterState;
+    }
+    else
+    {
+        return SYNC_DISCONNECT;
+    }
 }
 
 bool sync_check_server_state(syncState state)

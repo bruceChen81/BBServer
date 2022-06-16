@@ -26,6 +26,11 @@ int get_msg_username_byline(std::string& user, std::string& line);
 
 int get_msg_body_byline(std::string& msg, std::string& line);
 
+int save_msg_replace(std::string& numberInput, std::string& username, std::string& msgInput);
+
+int save_msg_write(std::string& msgSave);
+
+
 int sync_send_event(dataSyncEvType type, std::string& msg);
 
 

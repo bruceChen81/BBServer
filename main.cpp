@@ -21,6 +21,7 @@
 #include <time.h>
 #include <signal.h>
 #include <climits>
+#include <netdb.h>
 
 #include "common.h"
 #include "config.h"
@@ -123,6 +124,9 @@ int main(int argc, char *argv[])
 
 */
 
+
+
+
     string str;
 
     while(getline(cin, str))
@@ -210,7 +214,7 @@ void *handle_client_event(void *arg)
 
                 if(cliType == CLIENT_USER)
                 {
-                    pClient->state = SYNC_IDLE;
+                    pClient->slaveState = SYNC_IDLE;
                 }
 
                 client_list_add(pClient);
@@ -262,7 +266,7 @@ void *handle_client_event(void *arg)
             {
                 if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
                 {
-                    cout << "Recved msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]: "
+                    cout << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"
                           << string(buf, 0, bytesRecved)<< endl;
                 }
 
@@ -288,7 +292,7 @@ void *handle_client_event(void *arg)
                     response.append("\n");
 
                     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                        cout << "Send response to "<< pClient->ip <<":" << pClient->port <<": " << response << endl;
+                        cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
 
                     bytesSend = send(fd,response.c_str(),response.size(),0);
                     CHECK(bytesSend);

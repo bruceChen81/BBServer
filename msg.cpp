@@ -45,7 +45,6 @@ int process_sync_master_msg(clientInfo *pClient, char *buf, int length, string& 
     }
 
 
-
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
         cout << "process_sync_master_msg: "<< msg << endl;
 
@@ -60,30 +59,54 @@ int process_sync_master_msg(clientInfo *pClient, char *buf, int length, string& 
         sync_server_list_set_state(pServer, SYNC_M_PRECOMMITED);
 
         //check if all peers reply ok
-        if(true == sync_check_server_state(SYNC_M_PRECOMMITED))
+        if(sync_check_server_state(SYNC_M_PRECOMMITED))
         {
+            sync_set_master_state(SYNC_M_PRECOMMITED);
+
             //send precommit ACK message
             sync_send_event(SYNC_EV_PRECOMMIT_ACK, msg);
-
-
         }
     }
+    else if(msg == "5.1 ERROR PRECOMMIT")
+    {
+        sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_UNSUCCESS);
 
-    if(msg == "6.0 COMMIT ACK")
+        if(sync_get_master_state() != SYNC_M_PRECOMMIT_UNSUCCESS)
+        {
+            sync_set_master_state(SYNC_M_PRECOMMIT_UNSUCCESS);
+
+            //send precommit err message, only once
+            sync_send_event(SYNC_EV_PRECOMMIT_ERR, msg);
+        }
+    }
+    else if(msg == "6.0 COMMITED SUCCESS")
     {
         sync_server_list_set_state(pServer, SYNC_M_OPERATION_PERFORMED);
 
         //check if all peers reply ok
         if(true == sync_check_server_state(SYNC_M_OPERATION_PERFORMED))
         {
-            //send commit ACK message
-            sync_send_event(SYNC_EV_COMMIT_ACK, msg);
+            sync_set_master_state(SYNC_M_OPERATION_PERFORMED);
 
-            //send success or not successful message
-            //response += "SUCCESS";
-
-            //set all state back to idle
+            //send commit sucess message
+            sync_send_event(SYNC_EV_COMMIT_SUCCESS, msg);
         }
+    }
+    else if(msg == "6.1 COMMITED UNSUCCESS")
+    {
+        sync_server_list_set_state(pServer, SYNC_M_OPERATION_UNSUCCESS);
+
+        //send commit unsucess message, only once
+        if(sync_get_master_state() != SYNC_M_OPERATION_UNSUCCESS)
+        {
+            sync_set_master_state(SYNC_M_OPERATION_UNSUCCESS);
+
+            sync_send_event(SYNC_EV_COMMIT_UNSUCCESS, msg);
+        }
+    }
+    else
+    {
+        cout << "master receive error message" << endl;
     }
 
     return 0;
@@ -112,69 +135,90 @@ int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& r
     if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
         cout << "process_sync_slave_msg: "<< msg << endl;
 
-    //PRECOMMIT, ABORT, COMMIT WRITE/READ message, SUCCESS, NOT SUCCESSFUL
+    //PRECOMMIT, ABORT, COMMIT WRITE/READ message, END SUCCESS, END UNSUCCESS
+    string str1 = string("COMMIT WRITE");
+    string str2 = string("COMMIT REPLACE");
 
     if(msg == "PRECOMMIT")
     {
-        sync_set_client_state(pClient, SYNC_S_PRECOMMIT_RECEIVED);
+        sync_set_slave_state(pClient, SYNC_S_PRECOMMIT_RECEIVED);
 
         //check bbfile
 
 
         response += "5.0 PRECOMMIT ACK";
-        //response += "\n";
-        sync_set_client_state(pClient, SYNC_S_PRECOMMIT_ACK);
 
-        return 0;
+        sync_set_slave_state(pClient, SYNC_S_PRECOMMIT_ACK);
+
     }
-
-    string str1 = string("COMMIT WRITE");
-
-    if(0 == msg.compare(0, str1.length(), str1))
+    else if(0 == msg.compare(0, str1.length(), str1)) //COMMIT WRITE
     {
-        string msgSave = msg.substr(str1.length(), msg.length()-str1.length());
+        string msgSave = msg.substr(str1.length()+1, msg.length()-str1.length());
 
-        cout << "sync msg save:" <<msgSave<<endl;
+        cout << "sync msg write:" <<msgSave<<endl;
 
-        write_start();
+        sync_set_slave_state(pClient, SYNC_S_COMMITED);
 
-        myFile.open(CONFIG.bbFile, std::ios::app);//write, append
-
-        if(myFile.is_open())
+        if(save_msg_write(msgSave) == 0)
         {
-            myFile << msgSave;
-            myFile.close();
-
-            response.append("6.0 COMMIT ACK");
+           response.append("6.0 COMMITED SUCCESS");
         }
         else
         {
-            response.append("6.1 ERROR COMMIT");
+            response.append("6.1 COMMITED UNSUCCESS");
         }
 
-        write_end();
-
     }
-
-    string str2 = string("COMMIT REPLACE");
-
-    if(0 == msg.compare(0, str2.length(), str2))
+    else if(0 == msg.compare(0, str2.length(), str2)) //COMMIT REPLACE
     {
-        string msgReplace = msg.substr(str2.length(), msg.length()-str2.length());
+        string msgReplace = msg.substr(str2.length()+1, msg.length()-str2.length());
 
-        cout <<"sync msg replace: "<<msgReplace<<endl;
+        cout <<"sync msg replace:"<<msgReplace<<endl;
+
+        sync_set_slave_state(pClient, SYNC_S_COMMITED);
 
         //replace
+        std::size_t pos1, pos2;
 
-        response.append("6.0 COMMIT ACK");
+        pos1 = msgReplace.find("/");
+        pos2 = msgReplace.find("/", pos1+1);
+
+        if(pos1 == string::npos || pos2 == string::npos)
+        {
+            response.append("6.1 COMMITED UNSUCCESS");
+            return 0;
+        }
+
+        string numberInput = msgReplace.substr(0, pos1);
+        string username = msgReplace.substr(pos1+1, pos2-pos1-1);
+        string msgInput = msgReplace.substr(pos2+1);
+
+        if(save_msg_replace(numberInput, username, msgInput) == 0)
+        {
+           response.append("6.0 COMMITED SUCCESS");
+        }
+        else
+        {
+           response.append("6.1 COMMITED UNSUCCESS");
+        }
     }
-
-    if(msg == "SUCCESS")
+    else if(msg == "END SUCCESS")
     {
-        sync_set_client_state(pClient, SYNC_IDLE);
+        sync_set_slave_state(pClient, SYNC_IDLE);
 
 
-        return 0;
+    }
+    else if(msg == "END UNSUCCESS")
+    {
+        sync_set_slave_state(pClient, SYNC_IDLE);
+
+        //undo
+
+
+    }
+    else if(msg == "ABORT")
+    {
+        sync_set_slave_state(pClient, SYNC_IDLE);
     }
 
     return 0;
@@ -349,8 +393,6 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
 
             sync_send_precommit();
 
-            //sleep(2);
-
             pSyncEv = deDataSyncEventQueue();
 
             if(pSyncEv)
@@ -372,31 +414,30 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
                 {
                     cout << "sync commited error:" <<endl;
 
+                    sync_send_abort();
+
                     response.append("3.2 ERROR WRITE");
 
                     delete pSyncEv;
 
                     return 0;
                 }
-
-
-
             }
 
             pSyncEv = deDataSyncEventQueue();
 
             if(pSyncEv)
             {
-                if(pSyncEv->event == SYNC_EV_COMMIT_ACK)
+                if(pSyncEv->event == SYNC_EV_COMMIT_SUCCESS)
                 {
-                    cout << "sync commited ack" <<endl;
+                    cout << "sync commited success" <<endl;
 
                     delete pSyncEv;
 
                 }
-                else if(pSyncEv->event == SYNC_EV_COMMIT_ERR)
+                else if(pSyncEv->event == SYNC_EV_COMMIT_UNSUCCESS)
                 {
-                    cout << "sync commited error:" <<endl;
+                    cout << "sync commited unsuccess:" <<endl;
 
                     response.append("3.2 ERROR WRITE");
 
@@ -409,34 +450,28 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
 
         //write file
 
-        write_start();
-
-        myFile.open(CONFIG.bbFile, std::ios::app);//write, append
-
-        if(myFile.is_open())
+        if(save_msg_write(msgSave) == 0)
         {
-            myFile << msgSave << endl;
-            myFile.close();
-
             response.append("3.0 WROTE ");
             response.append(strNumber);
+
+            sync_send_success(true);
         }
         else
         {
             response.append("3.2 ERROR WRITE");
+
+            sync_send_success(false);
         }
 
-        write_end();
-
-        sync_send_success(true);
     }
     else if(arg1 == "REPLACE" || arg1 == "replace")
     {
         //REPLACE message-number/message
         //3.1 UNKNOWN message-number
 
-        long posLineStart;
-        string numberSaved,numberInput,msgInput,newLine;
+        //long posLineStart;
+        string numberSaved,numberInput,msgInput;
 
         numberInput = arg2.substr(0, arg2.find("/"));
         msgInput = arg2.substr(arg2.find("/")+1);
@@ -451,8 +486,6 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
         }
 
 
-
-
         //check sync peers, if configured, first invoke sync
         if(!sync_server_list_empty())
         {
@@ -465,8 +498,6 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
             // init successful, send precommit
 
             sync_send_precommit();
-
-            //sleep(2);
 
             pSyncEv = deDataSyncEventQueue();
 
@@ -493,31 +524,30 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
                 {
                     cout << "sync precommited error:" <<endl;
 
+                    sync_send_abort();
+
                     response.append("3.2 ERROR WRITE");
 
                     delete pSyncEv;
 
                     return 0;
                 }
-
-
-
             }
 
             pSyncEv = deDataSyncEventQueue();
 
             if(pSyncEv)
             {
-                if(pSyncEv->event == SYNC_EV_COMMIT_ACK)
+                if(pSyncEv->event == SYNC_EV_COMMIT_SUCCESS)
                 {
-                    cout << "sync commited ack" <<endl;
+                    cout << "sync commited success" <<endl;
 
                     delete pSyncEv;
 
                 }
-                else if(pSyncEv->event == SYNC_EV_COMMIT_ERR)
+                else if(pSyncEv->event == SYNC_EV_COMMIT_UNSUCCESS)
                 {
-                    cout << "sync commited error:" <<endl;
+                    cout << "sync commited unsucess" <<endl;
 
                     response.append("3.2 ERROR WRITE");
 
@@ -528,79 +558,22 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
             }
         }
 
+        int ret = save_msg_replace(numberInput, username, msgInput);
 
-
-        write_start();
-
-        myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
-        if(myFile.is_open())
+        if(ret == 0)
         {
-            while(getline(myFile, line))
-            {
-                posLineStart = myFile.tellg()-(long)line.length()-(long)1;
-
-                numberSaved = line.substr(0, line.find("/"));
-                //numberInput = arg2.substr(0, arg2.find("/"));
-
-                //compare message-number
-                if(numberInput == numberSaved)
-                {
-                    //msgInput = arg2.substr(arg2.find("/")+1);
-
-                    newLine.clear();
-
-                    newLine += numberSaved;
-                    newLine += "/";
-                    newLine += username;
-
-//                    if(strlen(pClient->name) != 0)
-//                    {
-//                        newLine += string(pClient->name, strlen(pClient->name));
-//                    }
-//                    else
-//                    {
-//                        newLine += "nobody";
-//                    }
-
-                    newLine += "/";
-                    newLine += msgInput;
-
-                    //replace
-                    myFile.seekp(posLineStart);
-                    myFile << newLine;
-
-                    if(line.length() > newLine.length())
-                    {
-                        string str = string(line.length() - newLine.length(), ' ');
-                        myFile << str;
-                    }
-
-                    response.append("3.3 REPLACED ");
-                    response.append(numberInput);
-
-                    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                        cout << "replace msg saved successfully!" << endl;
-
-                    //for data sync
-                    msgSave += newLine;
-
-                    break;
-                }
-            }
-
-            myFile.close();
+            response.append("3.3 REPLACED ");
+            response.append(numberInput);
         }
-
-        write_end();
-
-        if(response.empty())
+        else if(ret == -1)
         {
             response.append("3.1 UNKNOWN ");
             response.append(numberInput);
         }
 
-        //sync data
-        //send_data_sync_event(DATA_SYNC_REPLACE, msgSave);
+
+
+
     }
     else if(arg1 == "QUIT" || arg1 == "quit")
     {
@@ -615,6 +588,102 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
     }
 
     return 0;
+}
+
+
+//return 0:success; -1: write file error
+int save_msg_write(string& msgSave)
+{
+    fstream myFile;
+
+    int ret = -1;
+
+    write_start();
+
+    myFile.open(CONFIG.bbFile, std::ios::app);//write, append
+
+    if(myFile.is_open())
+    {
+        myFile << msgSave << endl;
+        myFile.close();
+
+        ret = 0;
+    }
+    else
+    {
+        ret = -1;
+    }
+
+    write_end();
+
+    return ret;
+}
+
+//return 0:success; -1:message-number no found; -2:write file error
+int save_msg_replace(string& numberInput, string& username, string& msgInput)
+{
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "save_msg_replace number:"<<numberInput<<" user:"<<username<<" msg:" << msgInput <<endl;
+
+    string line, newLine, numberSaved;
+
+    fstream myFile;
+
+    int ret = -1;
+
+    long posLineStart;
+
+    write_start();
+
+    myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
+    if(myFile.is_open())
+    {
+        while(getline(myFile, line))
+        {
+            posLineStart = myFile.tellg()-(long)line.length()-(long)1;
+
+            numberSaved = line.substr(0, line.find("/"));
+
+            //compare message-number
+            if(numberInput == numberSaved)
+            {
+                newLine.clear();
+
+                newLine += numberSaved;
+                newLine += "/";
+                newLine += username;
+                newLine += "/";
+                newLine += msgInput;
+
+                //replace
+                myFile.seekp(posLineStart);
+                myFile << newLine;
+
+                if(line.length() > newLine.length())
+                {
+                    string str = string(line.length() - newLine.length(), ' ');
+                    myFile << str;
+                }
+
+                ret = 0;
+
+                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                    cout << "replace msg saved successfully!" << endl;
+
+                break;
+            }
+        }
+
+        myFile.close();
+    }
+    else
+    {
+        ret = -2;
+    }
+
+    write_end();
+
+    return ret;
 }
 
 

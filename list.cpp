@@ -8,6 +8,19 @@
 using std::cout;
 using std::endl;
 
+std::string syncStateArray[SYNC_MAX] = {" ",
+                                  "DISCONNECT",
+                                  "IDLE",
+                                  "M_PRECOMMIT_MULTICASTED",
+                                  "M_PRECOMMITED",
+                                  "M_PRECOMMIT_UNSUCCESS",
+                                  "M_COMMITED",
+                                  "M_OPERATION_PERFORMED",
+                                  "M_OPERATION_UNSUCCESS",
+                                  "S_PRECOMMIT_RECEIVED",
+                                  "S_PRECOMMIT_ACK",
+                                  "S_COMMITED",
+                                  "S_UNDO"};
 
 
 LIST_HEAD(clientInfoHead, _clientInfo) clientList
@@ -233,7 +246,7 @@ clientInfo *client_list_get_next(clientInfo *pClient)
     return LIST_NEXT(pClient,p);
 }
 
-int sync_set_client_state(clientInfo *pClient, syncState state)
+int sync_set_slave_state(clientInfo *pClient, syncState state)
 {
     if(!pClient)
     {
@@ -242,12 +255,12 @@ int sync_set_client_state(clientInfo *pClient, syncState state)
 
     pthread_mutex_lock(&clientListLock);
 
-    pClient->state = state;
+    pClient->slaveState = state;
 
     pthread_mutex_unlock(&clientListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                cout << "sync set slave state [" <<state<<"] fd:" << pClient->fd << " IP:" << pClient->ip << " Port:" << pClient->port <<endl;
+                cout << "set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
 
     return 1;
 }
@@ -400,8 +413,8 @@ int sync_server_list_set_state(syncServerInfo *pServer, syncState state)
 
     pthread_mutex_unlock(&syncServerListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                cout << "sync set master state [" <<state<<"] fd:" << pServer->fd << " IP:" << pServer->ip << " Port:" << pServer->port <<endl;
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "set sync server list master state [" <<syncStateArray[state] <<"]" << " Peer:" << pServer->ip << ":" << pServer->port <<endl;
 
     return 1;
 }
@@ -421,6 +434,27 @@ int sync_server_list_set_fd(syncServerInfo *pServer, int fd)
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
                 cout << "sync_server_set_fd [" <<fd<<"] IP:" << pServer->ip << " Port:" << pServer->port <<endl;
+
+    return 1;
+}
+
+int sync_set_master_state(syncState state)
+{
+    syncServerInfo *pServer;
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    pServer = LIST_FIRST(&syncServerList);
+
+    if(pServer)
+    {
+        pServer->masterState = state;
+    }
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "set sync master state [" <<syncStateArray[state] <<"]" <<endl;
 
     return 1;
 }
