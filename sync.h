@@ -1,6 +1,8 @@
 #ifndef SYNC_H_INCLUDED
 #define SYNC_H_INCLUDED
 
+#include "common.h"
+
 typedef enum syncState
 {
     SYNC_DISCONNECT = 1,
@@ -21,6 +23,11 @@ typedef enum syncState
     SYNC_S_COMMITED,           //9 received commit, performed operation, send successful
     SYNC_S_UNDO,               //10 operation unsuccessful, undo
 
+
+    //user client
+    SYNC_U_WAITING_COMMIT,
+    SYNC_U_WAITING_SAVE,
+
     SYNC_MAX
 
 }syncState;
@@ -34,16 +41,17 @@ int sync_send_precommit();
 
 int sync_send_abort();
 
-int sync_send_commit(std::string& msgbody);
+int sync_send_commit(clientCmdType type, std::string& msgbody);
 
-int sync_send_success(bool isSuccessful);
+int sync_send_success(bool isSuccessful, std::string& msgNumber);
 
 syncState sync_get_master_state();
 
 bool sync_check_server_state(syncState state);
 
+bool sync_check_service_enable();
 
-void *handle_data_sync_event(void *arg);
+
 
 int sync_connect_to_server(std::string& ip, unsigned int port);
 

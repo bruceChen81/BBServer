@@ -17,7 +17,7 @@ int readerCnt = 0;
 void write_start()
 {
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: write waiting!" << std::endl;
+        std::cout << "BBFile Access: write trying!" << std::endl;
 
     sem_wait(&wrt);
 
@@ -45,7 +45,7 @@ void write_end()
 void read_start()
 {
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: read waiting!" << std::endl;
+        std::cout << "BBFile Access: read trying!" << std::endl;
 
     pthread_mutex_lock(&readerMutex);
 

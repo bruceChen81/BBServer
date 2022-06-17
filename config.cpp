@@ -25,7 +25,7 @@ int print_config()
         cout << "THMAX: " << CONFIG.thMax << endl << "BBPORT: " << CONFIG.bbPort << endl << "SYNCPORT: " << CONFIG.syncPort << endl;
         cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
         cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
-        cout << "CFGFILE: " << CONFIG.cfgFile << endl;
+        cout << "CFGFILE: " << CONFIG.cfgFile << endl <<"SYNC: "<<CONFIG.syncEnalbe<<endl;
         cout << "DBGLEVEL: " << CONFIG.debugLevel << endl<<endl;
     }
 
@@ -62,6 +62,7 @@ int load_config(char *pCfgFile)
     CONFIG.daemon = true;
     CONFIG.debug = false;
     strcpy(CONFIG.cfgFile, pCfgFile);
+    CONFIG.syncEnalbe = false;
     CONFIG.debugLevel = DEBUG_LEVEL_NONE;
     //CONFIG.maxConnections = CONFIG.thMax;
 
@@ -129,6 +130,7 @@ int load_config(char *pCfgFile)
     if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"PEERS="))
     {
         strcpy(CONFIG.peers, arg);
+        CONFIG.syncEnalbe = true;
     }
 
     //DAEMON

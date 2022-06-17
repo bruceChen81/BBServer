@@ -42,6 +42,403 @@ using std::cin;
 
 
 
+
+
+
+
+int send_response_to_client(clientInfo* pClient, std::string& response)
+{
+    int bytesSend;
+
+    response += "\n";
+
+    bytesSend = send(pClient->fd, response.c_str(), response.size(), 0);
+    CHECK(bytesSend);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
+
+    return 0;
+}
+
+int proc_client_ev_accept(clientEvent *pClientEv)
+{
+    sockaddr_in clientAddr;
+    socklen_t clientAddrSize = sizeof(clientAddr);
+
+    int new_fd = accept(pClientEv->fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
+
+    CHECK(new_fd);
+
+    if(new_fd >= 0)
+    {
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
+
+        //add new fd to fd set
+        conn_add(new_fd);
+
+        //add new client to client list
+        clientInfo *pClient = new clientInfo;
+        memset((void *)pClient, 0, sizeof(clientInfo));
+
+        pClient->fd = new_fd;
+        strcpy(pClient->ip, inet_ntoa(clientAddr.sin_addr));
+        pClient->port = ntohs(clientAddr.sin_port);
+        pClient->type = pClientEv->type;
+
+        if(pClientEv->type == CLIENT_USER)
+        {
+            pClient->slaveState = SYNC_IDLE;
+        }
+
+        client_list_add(pClient);
+
+        //send greeting
+        if(pClientEv->type == CLIENT_USER)
+        {
+            CHECK(send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0));
+        }
+//                else if(cliType == CLIENT_SYNC_MASTER)
+//                {
+//                    //set state
+//                    CHECK(send(new_fd, "hello I am master",strlen("hello I am master"), 0));
+//                }
+        else if(pClientEv->type == CLIENT_SYNC_SLAVE)
+        {
+            //set state
+            //CHECK(send(new_fd, "hello I am slave",strlen("hello I am slave"), 0));
+        }
+    }
+
+    return 0;
+}
+
+int proc_client_ev_recv(clientInfo* pClient)
+{
+    int bytesRecved;
+
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+
+    bytesRecved = recv(pClient->fd, buf, sizeof(buf), 0);
+
+    CHECK(bytesRecved);
+
+    if (bytesRecved == 0) //client disconnected, delete
+    {
+        conn_del(pClient->fd);
+
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+
+        client_list_del(pClient);
+    }
+    else if (bytesRecved > 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        {
+            cout << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"
+                 << string(buf, 0, bytesRecved)<< endl;
+        }
+
+        string response;
+
+        response.clear();
+
+        if(pClient->type == CLIENT_USER)
+        {
+            process_client_msg(pClient,buf,bytesRecved, response);
+        }
+        else if(pClient->type == CLIENT_SYNC_MASTER)
+        {
+            process_sync_master_msg(pClient,buf,bytesRecved, response);
+        }
+        else if(pClient->type == CLIENT_SYNC_SLAVE)
+        {
+            process_sync_slave_msg(pClient,buf,bytesRecved, response);
+        }
+
+        if(!response.empty())
+        {
+            send_response_to_client(pClient, response);
+
+//            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+//                cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
+//
+//            bytesSend = send(pClient->fd, response.c_str(), response.size(),0);
+//            CHECK(bytesSend);
+
+            // if QUIT cmd, disconnet the client
+            if(0 == response.compare(0, response.size()-2, "4.0 BYE"))
+            {
+                //conn_del(pClient->fd);
+                //client_list_del(pClient);
+            }
+        }
+    }
+
+    return 0;
+}
+
+
+int proc_client_ev_sync_precommit_ack(clientEvent *pClientEv)
+{
+    cout << "sync precommited ack" <<endl;
+
+    clientInfo* pClientUser;
+
+    while((pClientUser = sync_find_waiting_commit_user_client()) != nullptr)
+    {
+        sync_send_commit(pClientUser->cmd, pClientUser->msg);
+
+        sync_set_client_state(pClientUser, SYNC_U_WAITING_SAVE);
+    }
+
+    return 0;
+}
+
+int proc_client_ev_sync_precommit_err(clientEvent *pClientEv)
+{
+    cout << "sync precommited error:" <<endl;
+
+    sync_send_abort();
+
+    clientInfo* pClientUser;
+
+    while((pClientUser = sync_find_waiting_commit_user_client()) != nullptr)
+    {
+        string response = "3.2 ERROR WRITE";
+
+        send_response_to_client(pClientUser, response);
+
+        sync_clear_client_cmd(pClientUser);
+    }
+
+    return 0;
+}
+
+int proc_client_ev_sync_commit_success(clientEvent *pClientEv)
+{
+    clientInfo* pClientUser;
+
+    int ret;
+    bool isSuccess;
+
+    string response;
+
+    while((pClientUser = sync_find_waiting_save_user_client()) != nullptr)
+    {
+        if(pClientEv->msgNumber != pClientUser->msgNumber)
+        {
+            continue;
+        }
+
+        response.clear();
+
+        if(pClientUser->cmd == CLIENT_CMD_WRITE)
+        {
+            ret = save_msg_write(pClientUser->msg);
+            if(ret == 0)
+            {
+                response.append("3.0 WROTE ");
+                response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
+
+                isSuccess = true;
+            }
+            else
+            {
+                response.append("3.2 ERROR WRITE");
+
+                isSuccess = false;
+            }
+
+        }
+        else if(pClientUser->cmd == CLIENT_CMD_REPLACE)
+        {
+            ret = save_msg_write(pClientUser->msg);
+            if(ret == 0)
+            {
+                response.append("3.0 WROTE ");
+                response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
+
+                isSuccess = true;
+            }
+            else if(ret == -1)
+            {
+                response.append("3.1 UNKNOWN ");
+                response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
+
+                isSuccess = false;
+            }
+            else
+            {
+                response.append("3.2 ERROR WRITE");
+
+                isSuccess = false;
+            }
+        }
+
+        sync_send_success(isSuccess, pClientEv->msgNumber);
+
+        send_response_to_client(pClientUser, response);
+
+        sync_clear_client_cmd(pClientUser);
+    }
+
+    return 0;
+}
+
+int proc_client_ev_sync_commit_unsuccess(clientEvent *pClientEv)
+{
+    clientInfo* pClientUser;
+
+    string response;
+
+    while((pClientUser = sync_find_waiting_save_user_client()) != nullptr)
+    {
+        if(pClientEv->msgNumber != pClientUser->msgNumber)
+        {
+            continue;
+        }
+
+        response.clear();
+
+        if(pClientUser->cmd == CLIENT_CMD_WRITE)
+        {
+            response.append("3.2 ERROR WRITE");
+        }
+        else if(pClientUser->cmd == CLIENT_CMD_REPLACE)
+        {
+            string str = "6.1 COMMITED UNSUCCESS UNKNOWN";
+
+            if(pClientEv->response.compare(0, str.length(), str) == 0) //"6.1 COMMITED UNSUCCESS unknown-message-number")
+            {
+                response.append("3.1 UNKNOWN ");
+                //response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
+                response.append(pClientUser->msgNumber);
+            }
+            else
+            {
+                response.append("3.2 ERROR WRITE");
+            }
+        }
+
+        send_response_to_client(pClientUser, response);
+
+        sync_clear_client_cmd(pClientUser);
+
+        sync_send_success(false, pClientEv->msgNumber);
+    }
+
+    return 0;
+}
+
+int proc_client_ev_sync_timeout(clientEvent *pClientEv)
+{
+    return 0;
+
+}
+
+
+
+void *handle_client_event(void *arg)
+{
+    char *uargv = nullptr;
+
+    clientEvent *pClientEv = nullptr;
+
+    clientInfo* pClient = nullptr;
+
+    while(true)
+    {
+        pClientEv = deClientEventQueue();
+
+        if(nullptr == pClientEv)
+        {
+            continue;
+        }
+
+        if(pClientEv->event == EV_ACCEPT)
+        {
+            proc_client_ev_accept(pClientEv);
+        }
+
+        pClient = client_list_find(pClientEv->fd);
+
+        if(!pClient)
+        {
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "client has been deleted! fd:" << pClientEv->fd << endl;
+
+            continue;
+        }
+
+
+        else if(pClientEv->event == EV_RECV)
+        {
+            proc_client_ev_recv(pClient);
+        }
+        else if(pClientEv->event == EV_SYNC_PRECOMMIT_ACK)
+        {
+            proc_client_ev_sync_precommit_ack(pClientEv);
+        }
+        else if(pClientEv->event == EV_SYNC_PRECOMMIT_ERR)
+        {
+            proc_client_ev_sync_precommit_err(pClientEv);
+        }
+        else if(pClientEv->event == EV_SYNC_COMMIT_SUCCESS)
+        {
+            proc_client_ev_sync_commit_success(pClientEv);
+        }
+        else if(pClientEv->event == EV_SYNC_COMMIT_UNSUCCESS)
+        {
+            proc_client_ev_sync_commit_unsuccess(pClientEv);
+        }
+        else if(pClientEv->event == EV_SYNC_TIMEOUT)
+        {
+            proc_client_ev_sync_timeout(pClientEv);
+        }
+
+
+        delete pClientEv;
+    }
+
+    return uargv;
+}
+
+int create_thread_pool()
+{
+    pthread_t threadPool[CONFIG.thMax];
+
+    for(unsigned int i=0;i<CONFIG.thMax;i++)
+    {
+        pthread_create(&threadPool[i], NULL, handle_client_event, NULL);
+    }
+
+    return 0;
+}
+
+void *handle_tcp_connection(void *arg)
+{
+    char *uargv = nullptr;
+
+    start_conn_service();
+
+    return uargv;
+}
+
+int create_tcp_connection_thread()
+{
+    pthread_t threadConn;
+
+    pthread_create(&threadConn, NULL, handle_tcp_connection, NULL);
+
+    return 0;
+}
+
+
+
 int main(int argc, char *argv[])
 {
     if (load_config((char *)DEFAULT_CFG_FILE) >= 0)
@@ -73,11 +470,6 @@ int main(int argc, char *argv[])
             cout << "Client event queue created!" << endl;
     }
 
-    if(create_data_sync_event_queue() >= 0)
-    {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "Data sync event queue created!" << endl;
-    }
 
     if(create_thread_pool() >= 0)
     {
@@ -124,9 +516,6 @@ int main(int argc, char *argv[])
 
 */
 
-
-
-
     string str;
 
     while(getline(cin, str))
@@ -140,176 +529,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void *handle_tcp_connection(void *arg)
-{
-    char *uargv = nullptr;
-
-
-    start_conn_service();
-
-    return uargv;
-}
-
-
-void *handle_client_event(void *arg)
-{
-    char *uargv = nullptr;
-
-    int fd, new_fd, bytesRecved, bytesSend;
-
-    sockaddr_in clientAddr;
-    socklen_t clientAddrSize = sizeof(clientAddr);
-
-    clientEvent *pClientEv = nullptr;
-
-    clientInfo *pClient = nullptr;
-
-    clientEv evType;
-    clientType cliType;
-
-    char buf[1024];
-
-    memset(buf, 0, sizeof(buf));
-
-    while(true)
-    {
-        pClientEv = nullptr;
-        pClient = nullptr;
-
-        pClientEv = deClientEventQueue();
-
-        if(nullptr == pClientEv)
-        {
-            continue;
-        }
-
-        evType = pClientEv->event;
-        cliType = pClientEv->type;
-        fd = pClientEv->fd;
-
-        delete pClientEv;
-
-        if(evType == EV_ACCEPT)
-        {
-            new_fd = accept(fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
-
-            CHECK(new_fd);
-
-            if(new_fd >= 0)
-            {
-                if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                    cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
-
-                //add new fd to fd set
-                conn_add(new_fd);
-
-                //add new client to client list
-                clientInfo *pClient = new clientInfo;
-                memset((void *)pClient, 0, sizeof(clientInfo));
-
-                pClient->fd = new_fd;
-                strcpy(pClient->ip, inet_ntoa(clientAddr.sin_addr));
-                pClient->port = ntohs(clientAddr.sin_port);
-                pClient->type = cliType;
-
-                if(cliType == CLIENT_USER)
-                {
-                    pClient->slaveState = SYNC_IDLE;
-                }
-
-                client_list_add(pClient);
-
-                //send greeting
-                if(cliType == CLIENT_USER)
-                {
-                    CHECK(send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0));
-                }
-//                else if(cliType == CLIENT_SYNC_MASTER)
-//                {
-//                    //set state
-//                    CHECK(send(new_fd, "hello I am master",strlen("hello I am master"), 0));
-//                }
-                else if(cliType == CLIENT_SYNC_SLAVE)
-                {
-                    //set state
-                    //CHECK(send(new_fd, "hello I am slave",strlen("hello I am slave"), 0));
-                }
-            }
-        }
-        else if(evType == EV_RECV)
-        {
-            pClient = client_list_find(fd);
-
-            if(!pClient)
-            {
-                //conn_del(fd);
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                    cout << "client has been deleted! fd:" << fd << endl;
-
-                continue;
-            }
-
-            bytesRecved = recv(fd, buf, sizeof(buf), 0);
-
-            CHECK(bytesRecved);
-
-            if (bytesRecved == 0) //client disconnected, delete
-            {
-                conn_del(fd);
-
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                    cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
-
-                client_list_del(pClient);
-            }
-            else if (bytesRecved > 0)
-            {
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                {
-                    cout << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"
-                          << string(buf, 0, bytesRecved)<< endl;
-                }
-
-                string response;
-
-                response.clear();
-
-                if(pClient->type == CLIENT_USER)
-                {
-                    process_client_msg(pClient,buf,bytesRecved, response);
-                }
-                else if(pClient->type == CLIENT_SYNC_MASTER)
-                {
-                    process_sync_master_msg(pClient,buf,bytesRecved, response);
-                }
-                else if(pClient->type == CLIENT_SYNC_SLAVE)
-                {
-                    process_sync_slave_msg(pClient,buf,bytesRecved, response);
-                }
-
-                if(!response.empty())
-                {
-                    response.append("\n");
-
-                    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                        cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
-
-                    bytesSend = send(fd,response.c_str(),response.size(),0);
-                    CHECK(bytesSend);
-
-                    // if QUIT cmd, disconnet the client
-                    if(0 == response.compare(0, response.size()-2, "4.0 BYE"))
-                    {
-                        //conn_del(pClient->fd);
-                        //client_list_del(pClient);
-                    }
-                }
-            }
-        }
-    }
-
-    return uargv;
-}
 
 
 
@@ -317,36 +536,6 @@ void *handle_client_event(void *arg)
 
 
 
-
-int create_thread_pool()
-{
-    pthread_t threadPool[CONFIG.thMax];
-
-    for(unsigned int i=0;i<CONFIG.thMax;i++)
-    {
-        pthread_create(&threadPool[i], NULL, handle_client_event, NULL);
-    }
-
-    return 0;
-}
-
-int create_tcp_connection_thread()
-{
-    pthread_t threadConn;
-
-    pthread_create(&threadConn, NULL, handle_tcp_connection, NULL);
-
-    return 0;
-}
-
-int create_data_sync_thread()
-{
-    pthread_t threadDataSync;
-
-    pthread_create(&threadDataSync, NULL, handle_data_sync_event, NULL);
-
-    return 0;
-}
 
 
 

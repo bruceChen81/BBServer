@@ -79,6 +79,8 @@ int init_sync_server_list()
             //if config hostname, use gethostbyname to convert to ip
             struct hostent *host = gethostbyname(server.c_str());
 
+            serverIp.clear();
+
             if(host)
             {
                 serverIp += inet_ntoa(*((struct in_addr**)host->h_addr_list)[0]);
@@ -112,7 +114,9 @@ int init_sync_server_connection()
 
     if(sync_server_list_empty())
     {
-        cout << "sync_server_list_empty"<<endl;
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "sync server list is empty"<<endl;
+
         return -1;
     }
 
@@ -138,6 +142,11 @@ int init_sync_server_connection()
         }
 
         pServer = sync_server_list_get_next(pServer);
+    }
+
+    if(sync_check_server_state(SYNC_IDLE))
+    {
+        sync_set_master_state(SYNC_IDLE);
     }
 
     return initState;
@@ -219,14 +228,26 @@ int sync_send_abort()
     return 0;
 }
 
-
-int sync_send_commit(string& msgbody)
+//flag: 1-write, 2-replace
+int sync_send_commit(clientCmdType type, string& msgbody)
 {
     //send commit to sync server list
     //COMMIT WRITE(REPLACE)/message-number/user/msgbody
 
     string msg = string("COMMIT");
+
     msg += " ";
+    if(type == CLIENT_CMD_WRITE)
+    {
+        msg += "WRITE";
+    }
+    else if(type == CLIENT_CMD_REPLACE)
+    {
+        msg += "REPLACE";
+    }
+
+    msg += " ";
+
     msg += msgbody;
     msg += "\n";
 
@@ -263,9 +284,8 @@ int sync_send_commit(string& msgbody)
     return 0;
 }
 
-int sync_send_success(bool isSuccessful)
+int sync_send_success(bool isSuccessful, string& msgNumber)
 {
-
     string msg;
 
     if(isSuccessful)
@@ -276,6 +296,9 @@ int sync_send_success(bool isSuccessful)
     {
         msg += "END UNSUCCESS";
     }
+
+    msg += " ";
+    msg += msgNumber;
 
     msg += "\n";
 
@@ -331,11 +354,13 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     if(ret == 0)
     {
-        cout << "connected to sync server:" <<ip<<":"<<port<<endl;
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "connected to sync server:" <<ip<<":"<<port<<endl;
     }
     else
     {
-        cout << "failed to connect to sync server:" <<ip<<":"<<port<<endl;
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "failed to connect to sync server:" <<ip<<":"<<port<<endl;
 
         return -1;
     }
@@ -391,80 +416,11 @@ bool sync_check_server_state(syncState state)
     return true;
 }
 
-
-void *handle_data_sync_event(void *arg)
+bool sync_check_service_enable()
 {
-    char *uargv = nullptr;
-
-    dataSyncEvent *pDataSyncEv;
-    //syncServerInfo *pServer;
-
-    int ret;
-
-    while(true)
-    {
-        pDataSyncEv = nullptr;
-
-        pDataSyncEv = deDataSyncEventQueue();
-
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout << "handle_data_sync_event: "<<pDataSyncEv->msg << endl;
-
-        if(nullptr == pDataSyncEv)
-        {
-            continue;
-        }
-
-        ret = init_sync_server_connection();
-
-        if(ret < 0)
-        {
-            //abort sync if one of servers failed
-            cout << "init_sync_server_connection failed!" <<endl;
-
-            //break;
-        }
-
-        //send precommit to sync server list
-
-        syncServerInfo *pServer = sync_server_list_get_first();
-
-        while(pServer != nullptr)
-        {
-            //check server state
-            if(pServer->state == SYNC_IDLE)
-            {
-                string msg = string("PRECOMMIT");
-
-                CHECK(send(pServer->fd,msg.c_str(),msg.size(),0));
-
-                sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
-
-            }
-            else
-            {
-                cout << "sync server state [" << pServer->state << "] error! "<<pServer->ip<<":"<<pServer->port<<endl;
-            }
-
-            pServer = sync_server_list_get_next(pServer);
-        }
-
-        //start timer, when timeout check state
-
-
-
-
-
-
-
-
-
-
-        delete pDataSyncEv;
-    }
-
-    return uargv;
+    return CONFIG.syncEnalbe;
 }
+
 
 
 

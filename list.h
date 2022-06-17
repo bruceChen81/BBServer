@@ -6,13 +6,6 @@
 #include "sync.h"
 
 
-typedef enum clientType
-{
-    CLIENT_USER = 1,
-    CLIENT_SYNC_MASTER,
-    CLIENT_SYNC_SLAVE
-
-}clientType;
 
 
 
@@ -20,13 +13,13 @@ typedef struct _clientInfo
 {
     int fd;
     clientType type;
+    clientCmdType cmd;
     syncState slaveState;
     char name[64];
-    //std::string name;
     char ip[32];
-    //std::string ip;
     unsigned int port;
-    unsigned int msgNo;
+    std::string msgNumber;
+    std::string msg;
 
     LIST_ENTRY(_clientInfo) p;
 
@@ -54,6 +47,15 @@ bool client_list_empty();
 
 int sync_set_slave_state(clientInfo *pClient, syncState state);
 
+int sync_set_client_state(clientInfo *pClient, syncState state);
+
+int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& msg);
+
+int sync_clear_client_cmd(clientInfo *pClient);
+
+clientInfo * sync_find_waiting_commit_user_client();
+
+clientInfo * sync_find_waiting_save_user_client();
 
 
 

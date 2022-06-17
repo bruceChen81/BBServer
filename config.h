@@ -27,6 +27,7 @@ typedef struct sysCfg
     bool daemon;
     bool debug;
     char cfgFile[128];
+    bool syncEnalbe;
     unsigned int maxConnections;
     unsigned int debugLevel; //1-debug == true, 2-app message, 3-queue, 4-connection
 

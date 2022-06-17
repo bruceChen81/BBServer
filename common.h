@@ -7,7 +7,20 @@
 #define SUCCESS 0
 #define ERR -1
 
+typedef enum clientType
+{
+    CLIENT_USER = 1,
+    CLIENT_SYNC_MASTER,
+    CLIENT_SYNC_SLAVE
 
+}clientType;
+
+typedef enum clientCmdType
+{
+    CLIENT_CMD_WRITE = 1,
+    CLIENT_CMD_REPLACE
+
+}clientCmdType;
 
 
 #define CHECK_EXIT(X) ({int __val = (X); (__val == -1 ? \
@@ -22,12 +35,7 @@
 //perror("ERROR");
 //exit(-1);
 
-int create_thread_pool();
 
-//void *handle_client_event(void *arg);
 
-int create_tcp_connection_thread();
-
-int create_data_sync_thread();
 
 #endif // COMMON_H_INCLUDED

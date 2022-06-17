@@ -147,7 +147,7 @@ void conn_check_fd_set(fd_set *pFdSet)
         {
             clientEvent *pClientEv = new clientEvent;
 
-            memset(pClientEv, 0, sizeof(clientEv));
+            //memset(pClientEv, 0, sizeof(clientEv));
 
             pClientEv->event = EV_RECV;
             pClientEv->fd = connections[i];

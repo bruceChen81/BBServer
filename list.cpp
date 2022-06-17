@@ -20,7 +20,9 @@ std::string syncStateArray[SYNC_MAX] = {" ",
                                   "S_PRECOMMIT_RECEIVED",
                                   "S_PRECOMMIT_ACK",
                                   "S_COMMITED",
-                                  "S_UNDO"};
+                                  "S_UNDO",
+                                  "U_WAITING_COMMIT",
+                                  "U_WAITING_SAVE"};
 
 
 LIST_HEAD(clientInfoHead, _clientInfo) clientList
@@ -265,6 +267,111 @@ int sync_set_slave_state(clientInfo *pClient, syncState state)
     return 1;
 }
 
+int sync_set_client_state(clientInfo *pClient, syncState state)
+{
+    if(!pClient)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&clientListLock);
+
+    pClient->slaveState = state;
+
+    pthread_mutex_unlock(&clientListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+                cout << "set user client state [" <<syncStateArray[state] <<"]" <<endl;
+
+    return 1;
+}
+
+
+int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& msg)
+{
+    if(!pClient)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&clientListLock);
+
+    pClient->cmd = cmd;
+    pClient->msg += msg;
+    pClient->msgNumber += msg.substr(0, msg.find("/"));
+    pClient->slaveState = SYNC_U_WAITING_COMMIT;
+    //pClient->waitingSync = true;
+
+    pthread_mutex_unlock(&clientListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "save sync client cmd:" <<cmd<<" msg:" << msg <<endl;
+
+    return 1;
+}
+
+int sync_clear_client_cmd(clientInfo *pClient)
+{
+    if(!pClient)
+    {
+        return -1;
+    }
+
+    pthread_mutex_lock(&clientListLock);
+
+    //pClient->cmd.clear();
+    pClient->msg.clear();
+    pClient->msgNumber.clear();
+    pClient->slaveState = SYNC_IDLE;
+    //pClient->waitingSync = false;
+
+    pthread_mutex_unlock(&clientListLock);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout << "clear sync client cmd" <<endl;
+
+    return 1;
+}
+
+clientInfo * sync_find_waiting_commit_user_client()
+{
+    clientInfo *np, *ret = nullptr;
+
+
+    pthread_mutex_lock(&clientListLock);
+
+    LIST_FOREACH(np, &clientList, p)
+    {
+        if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_COMMIT))
+        {
+            ret = np;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&clientListLock);
+
+    return ret;
+}
+
+clientInfo * sync_find_waiting_save_user_client()
+{
+    clientInfo *np, *ret = nullptr;
+
+
+    pthread_mutex_lock(&clientListLock);
+
+    LIST_FOREACH(np, &clientList, p)
+    {
+        if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_SAVE))
+        {
+            ret = np;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&clientListLock);
+
+    return ret;
+}
 
 
 
