@@ -9,19 +9,6 @@
 #include "list.h"
 
 
-//client event queue
-typedef enum clientEv
-{
-    EV_ACCEPT = 1,
-    EV_RECV,
-    EV_SYNC_PRECOMMIT_ACK,
-    EV_SYNC_PRECOMMIT_ERR,
-    EV_SYNC_COMMIT_SUCCESS,
-    EV_SYNC_COMMIT_UNSUCCESS,
-    EV_SYNC_TIMEOUT
-
-}clientEv;
-
 typedef struct _clientEvent
 {
     int fd;

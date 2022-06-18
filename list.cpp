@@ -563,9 +563,61 @@ int sync_set_master_state(syncState state)
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
                 cout << "set sync master state [" <<syncStateArray[state] <<"]" <<endl;
 
-    return 1;
+    //timer
+    switch(state)
+    {
+        case SYNC_M_PRECOMMIT_MULTICASTED:
+        case SYNC_M_COMMITED:
+            start_timer_master(SYNC_STATE_TIMEOUT);
+            break;
+
+        case SYNC_M_PRECOMMITED:
+        case SYNC_M_PRECOMMIT_UNSUCCESS:
+        case SYNC_M_OPERATION_PERFORMED:
+        case SYNC_M_OPERATION_UNSUCCESS:
+            stop_timer_master();
+            break;
+
+        default:
+            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                cout <<"wrong master timer state"<<endl;
+            break;
+    }
+
+
+    return 0;
 }
 
+
+syncState sync_get_master_state()
+{
+    syncServerInfo *pServer;
+
+    syncState state = SYNC_MAX;
+
+    pthread_mutex_lock(&syncServerListLock);
+
+    pServer = LIST_FIRST(&syncServerList);
+
+    if(pServer)
+    {
+        state = pServer->masterState;
+    }
+
+    pthread_mutex_unlock(&syncServerListLock);
+
+    return state;
+}
+
+void print_sync_state(syncState state)
+{
+    if(state < SYNC_MAX)
+    {
+        cout << "sync master state[" << syncStateArray[state] <<"]" <<endl;
+    }
+
+    return;
+}
 
 
 

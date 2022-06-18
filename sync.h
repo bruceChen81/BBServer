@@ -2,6 +2,7 @@
 #define SYNC_H_INCLUDED
 
 #include "common.h"
+#include "queue.h"
 
 typedef enum syncState
 {
@@ -45,7 +46,11 @@ int sync_send_commit(clientCmdType type, std::string& msgbody);
 
 int sync_send_success(bool isSuccessful, std::string& msgNumber);
 
-syncState sync_get_master_state();
+
+int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& msg);
+
+int sync_send_event_timeout(clientEv type);
+
 
 bool sync_check_server_state(syncState state);
 
@@ -56,6 +61,14 @@ bool sync_check_service_enable();
 int sync_connect_to_server(std::string& ip, unsigned int port);
 
 
-timer_t start_timer(int t_second);
+
+
+int create_timer_master();
+
+int start_timer_master(int sec);
+
+int stop_timer_master();
+
+int delete_timer_master();
 
 #endif // SYNC_H_INCLUDED

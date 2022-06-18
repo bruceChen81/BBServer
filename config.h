@@ -3,6 +3,8 @@
 
 #define MAX_THREAD_POOL 1024
 
+#define SYNC_STATE_TIMEOUT 10
+
 #define DEFAULT_CFG_FILE "bbserv.conf"
 
 typedef enum DbgLevel

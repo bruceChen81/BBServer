@@ -114,12 +114,22 @@ int proc_client_ev_accept(clientEvent *pClientEv)
     return 0;
 }
 
-int proc_client_ev_recv(clientInfo* pClient)
+int proc_client_ev_recv(clientEvent* pClientEv)
 {
     int bytesRecved;
 
     char buf[1024];
     memset(buf, 0, sizeof(buf));
+
+    clientInfo *pClient = client_list_find(pClientEv->fd);
+
+    if(!pClient)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout << "client has been deleted! fd:" << pClientEv->fd << endl;
+
+        return -1;
+    }
 
     bytesRecved = recv(pClient->fd, buf, sizeof(buf), 0);
 
@@ -182,7 +192,7 @@ int proc_client_ev_recv(clientInfo* pClient)
 }
 
 
-int proc_client_ev_sync_precommit_ack(clientEvent *pClientEv)
+int proc_sync_ev_precommit_ack(clientEvent *pClientEv)
 {
     cout << "sync precommited ack" <<endl;
 
@@ -198,7 +208,7 @@ int proc_client_ev_sync_precommit_ack(clientEvent *pClientEv)
     return 0;
 }
 
-int proc_client_ev_sync_precommit_err(clientEvent *pClientEv)
+int proc_sync_ev_precommit_err(clientEvent *pClientEv)
 {
     cout << "sync precommited error:" <<endl;
 
@@ -218,7 +228,7 @@ int proc_client_ev_sync_precommit_err(clientEvent *pClientEv)
     return 0;
 }
 
-int proc_client_ev_sync_commit_success(clientEvent *pClientEv)
+int proc_sync_ev_commit_success(clientEvent *pClientEv)
 {
     clientInfo* pClientUser;
 
@@ -289,7 +299,7 @@ int proc_client_ev_sync_commit_success(clientEvent *pClientEv)
     return 0;
 }
 
-int proc_client_ev_sync_commit_unsuccess(clientEvent *pClientEv)
+int proc_sync_ev_commit_unsuccess(clientEvent *pClientEv)
 {
     clientInfo* pClientUser;
 
@@ -334,12 +344,32 @@ int proc_client_ev_sync_commit_unsuccess(clientEvent *pClientEv)
     return 0;
 }
 
-int proc_client_ev_sync_timeout(clientEvent *pClientEv)
+int proc_sync_ev_master_timeout(clientEvent *pClientEv)
 {
+    string msgNum, msg;
+
+    syncState state = sync_get_master_state();
+
+    print_sync_state(state);
+
+    if(state == SYNC_M_PRECOMMIT_MULTICASTED)
+    {
+        sync_send_event(EV_SYNC_PRECOMMIT_ERR, msgNum, -1, msg);
+    }
+    else if(state == SYNC_M_COMMITED)
+    {
+        sync_send_event(EV_SYNC_COMMIT_UNSUCCESS, msgNum, -1, msg);
+    }
+
     return 0;
 
 }
 
+int proc_sync_ev_slave_timeout(clientEvent *pClientEv)
+{
+    return 0;
+
+}
 
 
 void *handle_client_event(void *arg)
@@ -348,7 +378,7 @@ void *handle_client_event(void *arg)
 
     clientEvent *pClientEv = nullptr;
 
-    clientInfo* pClient = nullptr;
+    //clientInfo* pClient = nullptr;
 
     while(true)
     {
@@ -363,41 +393,33 @@ void *handle_client_event(void *arg)
         {
             proc_client_ev_accept(pClientEv);
         }
-
-        pClient = client_list_find(pClientEv->fd);
-
-        if(!pClient)
-        {
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                cout << "client has been deleted! fd:" << pClientEv->fd << endl;
-
-            continue;
-        }
-
-
         else if(pClientEv->event == EV_RECV)
         {
-            proc_client_ev_recv(pClient);
+            proc_client_ev_recv(pClientEv);
         }
         else if(pClientEv->event == EV_SYNC_PRECOMMIT_ACK)
         {
-            proc_client_ev_sync_precommit_ack(pClientEv);
+            proc_sync_ev_precommit_ack(pClientEv);
         }
         else if(pClientEv->event == EV_SYNC_PRECOMMIT_ERR)
         {
-            proc_client_ev_sync_precommit_err(pClientEv);
+            proc_sync_ev_precommit_err(pClientEv);
         }
         else if(pClientEv->event == EV_SYNC_COMMIT_SUCCESS)
         {
-            proc_client_ev_sync_commit_success(pClientEv);
+            proc_sync_ev_commit_success(pClientEv);
         }
         else if(pClientEv->event == EV_SYNC_COMMIT_UNSUCCESS)
         {
-            proc_client_ev_sync_commit_unsuccess(pClientEv);
+            proc_sync_ev_commit_unsuccess(pClientEv);
         }
-        else if(pClientEv->event == EV_SYNC_TIMEOUT)
+        else if(pClientEv->event == EV_SYNC_TIMEOUT_MASTER)
         {
-            proc_client_ev_sync_timeout(pClientEv);
+            proc_sync_ev_master_timeout(pClientEv);
+        }
+        else if(pClientEv->event == EV_SYNC_TIMEOUT_SLAVE)
+        {
+            proc_sync_ev_slave_timeout(pClientEv);
         }
 
 
@@ -477,14 +499,6 @@ int main(int argc, char *argv[])
             cout << "Client event process thread pool created!" << endl;
     }
 
-//    if(create_data_sync_thread() >= 0)
-//    {
-//        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-//            cout << "Data sync event process thread created!" << endl;
-//    }
-
-
-
     if(init_bbfile_access_semahpores() >= 0)
     {
         if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
@@ -504,6 +518,15 @@ int main(int argc, char *argv[])
     }
 
     //sleep(1);
+
+
+    if(create_timer_master() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Sync master timer created!" << endl;
+    }
+
+    //start_timer_master(1);
 
 
 

@@ -22,6 +22,22 @@ typedef enum clientCmdType
 
 }clientCmdType;
 
+//client event queue
+typedef enum clientEv
+{
+    EV_ACCEPT = 1,
+    EV_RECV,
+    EV_SYNC_PRECOMMIT_ACK,
+    EV_SYNC_PRECOMMIT_ERR,
+    EV_SYNC_COMMIT_SUCCESS,
+    EV_SYNC_COMMIT_UNSUCCESS,
+    EV_SYNC_TIMEOUT_MASTER,
+    EV_SYNC_TIMEOUT_SLAVE
+
+}clientEv;
+
+
+
 
 #define CHECK_EXIT(X) ({int __val = (X); (__val == -1 ? \
                 ({fprintf(stderr, "ERROR ("__FILE__":%d) -- %s\n", __LINE__, strerror(errno)); \

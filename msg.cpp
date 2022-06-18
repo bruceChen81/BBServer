@@ -170,6 +170,9 @@ int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& r
 
         //check bbfile
 
+        //for test timeout
+        //sleep(SYNC_STATE_TIMEOUT +5 );
+
 
         response += "5.0 PRECOMMIT ACK";
 
@@ -601,19 +604,7 @@ int save_msg_replace(string& msg)
     return ret;
 }
 
-int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& msg)
-{
-    clientEvent *pSyncEv = new clientEvent;
 
-    pSyncEv->event = type;
-    pSyncEv->msgNumber = msgNumber;
-    pSyncEv->fd = fd;
-    pSyncEv->response = msg;
-
-    enClientEventQueue(pSyncEv);
-
-    return 0;
-}
 
 
 int get_new_msg_number(std::string& strNumber)

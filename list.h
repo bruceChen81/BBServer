@@ -99,5 +99,9 @@ int sync_server_list_set_state(syncServerInfo *pServer, syncState state);
 
 int sync_set_master_state(syncState state);
 
+syncState sync_get_master_state();
+
+void print_sync_state(syncState state);
+
 
 #endif // LIST_H_INCLUDED

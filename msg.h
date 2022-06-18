@@ -31,9 +31,8 @@ int save_msg_replace(std::string& msgSave);
 int save_msg_write(std::string& msgSave);
 
 
-//int sync_send_event(dataSyncEvType type, std::string& msg);
 
-int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& msg);
+
 
 
 

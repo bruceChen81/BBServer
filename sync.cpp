@@ -384,19 +384,6 @@ int sync_connect_to_server(string& ip, unsigned int port)
     return sockfd;
 }
 
-syncState sync_get_master_state()
-{
-    syncServerInfo *pServer = sync_server_list_get_first();
-
-    if(pServer)
-    {
-        return pServer->masterState;
-    }
-    else
-    {
-        return SYNC_DISCONNECT;
-    }
-}
 
 bool sync_check_server_state(syncState state)
 {
@@ -422,24 +409,60 @@ bool sync_check_service_enable()
 }
 
 
-
-
-
-
-
-void handler(int sig)
+int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& msg)
 {
-    cout << "caught signal: " << sig <<endl;
+    clientEvent *pSyncEv = new clientEvent;
 
-    //signal(sig, SIG_IGN);
+    pSyncEv->event = type;
+    pSyncEv->msgNumber = msgNumber;
+    pSyncEv->fd = fd;
+    pSyncEv->response = msg;
 
+    enClientEventQueue(pSyncEv);
+
+    return 0;
+}
+
+int sync_send_event_timeout(clientEv type)
+{
+    clientEvent *pSyncEv = new clientEvent;
+
+    pSyncEv->event = type;
+
+    enClientEventQueue(pSyncEv);
+
+    return 0;
 }
 
 
 
-timer_t start_timer(int t_second)
+timer_t timerid_master;
+
+void handle_master_timeout(int sig)
 {
-    timer_t timerid;
+
+    //signal(sig, SIG_INT);
+    //signal(SIG_INT, handler);
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout <<"sync master state timeout!"<<endl;
+
+
+//    syncState state = sync_get_master_state();
+//
+//    print_sync_state(state);
+
+    stop_timer_master();
+
+    sync_send_event_timeout(EV_SYNC_TIMEOUT_MASTER);
+
+    return;
+}
+
+
+
+int create_timer_master()
+{
+    //timer_t timerid_master;
     struct sigevent se;
     struct itimerspec timerspec;
     sigset_t mask;
@@ -448,7 +471,7 @@ timer_t start_timer(int t_second)
     //sa.sa_flags = SA_SIGINFO;
     sa.sa_flags = SA_RESTART;
     //sa.sa_sigaction = handler;
-    sa.sa_handler = handler;
+    sa.sa_handler = handle_master_timeout;
 
     sigemptyset(&sa.sa_mask);
     CHECK(sigaction(SIGRTMIN, &sa, NULL));
@@ -462,29 +485,69 @@ timer_t start_timer(int t_second)
     //create timer
     se.sigev_notify = SIGEV_SIGNAL;
     se.sigev_signo = SIGRTMIN;
-    se.sigev_value.sival_ptr = &timerid;
+    se.sigev_value.sival_ptr = &timerid_master;
 
 
-    CHECK(timer_create(CLOCK_REALTIME, &se, &timerid));
+    CHECK(timer_create(CLOCK_REALTIME, &se, &timerid_master));
 
     //start timer
-    timerspec.it_interval.tv_sec = t_second;
+    timerspec.it_interval.tv_sec = 3;
     timerspec.it_interval.tv_nsec = 0;
-    timerspec.it_value.tv_sec = 1; //delay
-    timerspec.it_value.tv_nsec = 0;
+    timerspec.it_value.tv_sec = 0; //delay
+    timerspec.it_value.tv_nsec = 10;
 
-    CHECK(timer_settime(timerid, 0, &timerspec, NULL));
+    //CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
     //unlock thmer signal
     CHECK(sigprocmask(SIG_UNBLOCK, &mask, NULL));
 
-
-
-    return timerid;
+    return 0;
 }
 
 
+int start_timer_master(int sec)
+{
+    struct itimerspec timerspec;
 
+    timerspec.it_interval.tv_sec = sec;
+    timerspec.it_interval.tv_nsec = 0;
+    timerspec.it_value.tv_sec = 0; //delay
+    timerspec.it_value.tv_nsec = 1000;
+
+    CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "start sync master state timer:" <<sec<<" s"<<endl;
+
+    return 0;
+}
+
+int stop_timer_master()
+{
+    struct itimerspec timerspec;
+
+    timerspec.it_interval.tv_sec = 0;
+    timerspec.it_interval.tv_nsec = 0;
+    timerspec.it_value.tv_sec = 0; //delay
+    timerspec.it_value.tv_nsec = 0;
+
+    CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "stop sync master state timer" << endl;
+
+    return 0;
+}
+
+int delete_timer_master()
+{
+    CHECK(timer_delete(timerid_master));
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "delete sync master state timer" << endl;
+
+    return 0;
+}
 
 
 
