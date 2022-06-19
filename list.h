@@ -18,6 +18,7 @@ typedef struct _clientInfo
     char name[64];
     char ip[32];
     unsigned int port;
+    bool slaveTimeout;
     std::string msgNumber;
     std::string msg;
 
@@ -47,15 +48,19 @@ bool client_list_empty();
 
 int sync_set_slave_state(clientInfo *pClient, syncState state);
 
+syncState sync_get_slave_state(clientInfo *pClient);
+
 int sync_set_client_state(clientInfo *pClient, syncState state);
 
 int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& msg);
 
 int sync_clear_client_cmd(clientInfo *pClient);
 
-clientInfo * sync_find_waiting_commit_user_client();
+clientInfo *sync_find_waiting_commit_user_client();
 
-clientInfo * sync_find_waiting_save_user_client();
+clientInfo *sync_find_waiting_save_user_client();
+
+clientInfo *sync_find_waiting_commit_slave_client();
 
 
 

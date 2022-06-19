@@ -8,7 +8,7 @@
 using std::cout;
 using std::endl;
 
-std::string syncStateArray[SYNC_MAX] = {" ",
+std::string syncStateArray[SYNC_MAX] = {"NULL",
                                   "DISCONNECT",
                                   "IDLE",
                                   "M_PRECOMMIT_MULTICASTED",
@@ -17,10 +17,12 @@ std::string syncStateArray[SYNC_MAX] = {" ",
                                   "M_COMMITED",
                                   "M_OPERATION_PERFORMED",
                                   "M_OPERATION_UNSUCCESS",
+
                                   "S_PRECOMMIT_RECEIVED",
                                   "S_PRECOMMIT_ACK",
                                   "S_COMMITED",
                                   "S_UNDO",
+
                                   "U_WAITING_COMMIT",
                                   "U_WAITING_SAVE"};
 
@@ -248,6 +250,13 @@ clientInfo *client_list_get_next(clientInfo *pClient)
     return LIST_NEXT(pClient,p);
 }
 
+/*
+    //slave
+    SYNC_S_PRECOMMIT_RECEIVED, //7 received precommit
+    SYNC_S_PRECOMMIT_ACK,      //8 sent positive ack
+    SYNC_S_COMMITED,           //9 received commit, performed operation, send successful
+    SYNC_S_UNDO,               //10 operation unsuccessful, undo
+*/
 int sync_set_slave_state(clientInfo *pClient, syncState state)
 {
     if(!pClient)
@@ -264,9 +273,48 @@ int sync_set_slave_state(clientInfo *pClient, syncState state)
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
                 cout << "set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
 
-    return 1;
+    switch(state)
+    {
+        case SYNC_S_PRECOMMIT_ACK:
+            start_timer_slave(SYNC_STATE_TIMEOUT);
+            break;
+
+        case SYNC_S_COMMITED:
+            //stop_timer_slave();
+            break;
+
+        default:
+            break;
+    }
+
+    return 0;
 }
 
+syncState sync_get_slave_state(clientInfo *pClient)
+{
+    syncState state = SYNC_MAX;
+
+    if(!pClient)
+    {
+        return SYNC_MAX;
+    }
+
+    pthread_mutex_lock(&clientListLock);
+
+    state = pClient->slaveState;
+
+    pthread_mutex_unlock(&clientListLock);
+
+
+    return state;
+}
+
+
+/*
+    //user client
+    SYNC_U_WAITING_COMMIT,
+    SYNC_U_WAITING_SAVE,
+*/
 int sync_set_client_state(clientInfo *pClient, syncState state)
 {
     if(!pClient)
@@ -363,6 +411,25 @@ clientInfo * sync_find_waiting_save_user_client()
     LIST_FOREACH(np, &clientList, p)
     {
         if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_SAVE))
+        {
+            ret = np;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&clientListLock);
+
+    return ret;
+}
+
+clientInfo * sync_find_waiting_commit_slave_client()
+{
+    clientInfo *np, *ret = nullptr;
+
+    pthread_mutex_lock(&clientListLock);
+
+    LIST_FOREACH(np, &clientList, p)
+    {
+        if((np->type == CLIENT_SYNC_SLAVE) && (np->slaveState == SYNC_S_PRECOMMIT_ACK))
         {
             ret = np;
             break;
@@ -545,6 +612,15 @@ int sync_server_list_set_fd(syncServerInfo *pServer, int fd)
     return 1;
 }
 
+/*
+    //master
+    SYNC_M_PRECOMMIT_MULTICASTED, //3 write request from a client, broadcasted precommit
+    SYNC_M_PRECOMMITED,           //4 positive acked by everybody
+    SYNC_M_PRECOMMIT_UNSUCCESS,
+    SYNC_M_COMMITED,              //5 broadcasted commit and data
+    SYNC_M_OPERATION_PERFORMED,   //6 positive acked by everybody, performed operation
+    SYNC_M_OPERATION_UNSUCCESS,
+*/
 int sync_set_master_state(syncState state)
 {
     syncServerInfo *pServer;
@@ -575,12 +651,10 @@ int sync_set_master_state(syncState state)
         case SYNC_M_PRECOMMIT_UNSUCCESS:
         case SYNC_M_OPERATION_PERFORMED:
         case SYNC_M_OPERATION_UNSUCCESS:
-            stop_timer_master();
+            //stop_timer_master();
             break;
 
         default:
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-                cout <<"wrong master timer state"<<endl;
             break;
     }
 
@@ -613,7 +687,7 @@ void print_sync_state(syncState state)
 {
     if(state < SYNC_MAX)
     {
-        cout << "sync master state[" << syncStateArray[state] <<"]" <<endl;
+        cout << "[" << syncStateArray[state] <<"]" <<endl;
     }
 
     return;

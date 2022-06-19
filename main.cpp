@@ -137,10 +137,16 @@ int proc_client_ev_recv(clientEvent* pClientEv)
 
     if (bytesRecved == 0) //client disconnected, delete
     {
+
         conn_del(pClient->fd);
 
         if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
             cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+
+        if(pClient->type == CLIENT_SYNC_MASTER)
+        {
+            //sync_set_master_state(SYNC_DISCONNECT);
+        }
 
         client_list_del(pClient);
     }
@@ -350,8 +356,6 @@ int proc_sync_ev_master_timeout(clientEvent *pClientEv)
 
     syncState state = sync_get_master_state();
 
-    print_sync_state(state);
-
     if(state == SYNC_M_PRECOMMIT_MULTICASTED)
     {
         sync_send_event(EV_SYNC_PRECOMMIT_ERR, msgNum, -1, msg);
@@ -362,13 +366,31 @@ int proc_sync_ev_master_timeout(clientEvent *pClientEv)
     }
 
     return 0;
-
 }
 
 int proc_sync_ev_slave_timeout(clientEvent *pClientEv)
 {
-    return 0;
+    clientInfo* pClientSlave = client_list_get_first();
 
+    while(pClientSlave)
+    {
+        if((pClientSlave->type == CLIENT_SYNC_SLAVE) && (pClientSlave->slaveState == SYNC_S_PRECOMMIT_ACK))
+        {
+            pClientSlave->slaveTimeout = true;
+        }
+
+        pClientSlave = client_list_get_next(pClientSlave);
+    }
+
+    sleep(1);
+
+    while((pClientSlave = sync_find_waiting_commit_slave_client()) != nullptr)
+    {
+        sync_set_slave_state(pClientSlave, SYNC_IDLE);
+        pClientSlave->slaveTimeout = false;
+    }
+
+    return 0;
 }
 
 
@@ -526,8 +548,11 @@ int main(int argc, char *argv[])
             cout << "Sync master timer created!" << endl;
     }
 
-    //start_timer_master(1);
-
+    if(create_timer_slave() >= 0)
+    {
+        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Sync slave timer created!" << endl;
+    }
 
 
  /*

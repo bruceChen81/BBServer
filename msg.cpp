@@ -179,8 +179,24 @@ int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& r
         sync_set_slave_state(pClient, SYNC_S_PRECOMMIT_ACK);
 
     }
+    else if(msg == "ABORT")
+    {
+        sync_set_slave_state(pClient, SYNC_IDLE);
+    }
     else if(0 == msg.compare(0, str1.length(), str1)) //COMMIT WRITE
     {
+        if(SYNC_S_PRECOMMIT_ACK != pClient->slaveState)
+        {
+            if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            {
+                cout << "sync slave recv msg at wrong state";
+                print_sync_state(pClient->slaveState);
+                cout<< endl;
+
+                return -1;
+            }
+        }
+
         string msgSave = msg.substr(str1.length()+1, msg.length()-str1.length());
 
         msgnumber = msgSave.substr(0, msgSave.find("/"));
@@ -203,6 +219,18 @@ int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& r
     }
     else if(0 == msg.compare(0, str2.length(), str2)) //COMMIT REPLACE
     {
+        if(SYNC_S_PRECOMMIT_ACK != pClient->slaveState)
+        {
+            if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            {
+                cout << "sync slave recv msg at wrong state";
+                print_sync_state(pClient->slaveState);
+                cout<< endl;
+
+                return -1;
+            }
+        }
+
         string msgReplace = msg.substr(str2.length()+1, msg.length()-str2.length());
 
         msgnumber = msgReplace.substr(0, msgReplace.find("/"));
@@ -248,10 +276,7 @@ int process_sync_slave_msg(clientInfo *pClient, char *buf, int length, string& r
 
 
     }
-    else if(msg == "ABORT")
-    {
-        sync_set_slave_state(pClient, SYNC_IDLE);
-    }
+
 
     return 0;
 

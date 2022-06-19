@@ -71,4 +71,13 @@ int stop_timer_master();
 
 int delete_timer_master();
 
+
+int create_timer_slave();
+
+int start_timer_slave(int sec);
+
+int stop_timer_slave();
+
+int delete_timer_slave();
+
 #endif // SYNC_H_INCLUDED

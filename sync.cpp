@@ -436,7 +436,7 @@ int sync_send_event_timeout(clientEv type)
 
 
 
-timer_t timerid_master;
+timer_t timerid_master, timerid_slave;
 
 void handle_master_timeout(int sig)
 {
@@ -446,14 +446,24 @@ void handle_master_timeout(int sig)
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
             cout <<"sync master state timeout!"<<endl;
 
-
-//    syncState state = sync_get_master_state();
-//
-//    print_sync_state(state);
-
-    stop_timer_master();
+    //stop_timer_master();
 
     sync_send_event_timeout(EV_SYNC_TIMEOUT_MASTER);
+
+    return;
+}
+
+void handle_slave_timeout(int sig)
+{
+
+    //signal(sig, SIG_INT);
+    //signal(SIG_INT, handler);
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout <<"sync slave state timeout!"<<endl;
+
+    //stop_timer_slave();
+
+    sync_send_event_timeout(EV_SYNC_TIMEOUT_SLAVE);
 
     return;
 }
@@ -464,7 +474,7 @@ int create_timer_master()
 {
     //timer_t timerid_master;
     struct sigevent se;
-    struct itimerspec timerspec;
+    //struct itimerspec timerspec;
     sigset_t mask;
     struct sigaction sa;
 
@@ -491,10 +501,54 @@ int create_timer_master()
     CHECK(timer_create(CLOCK_REALTIME, &se, &timerid_master));
 
     //start timer
-    timerspec.it_interval.tv_sec = 3;
-    timerspec.it_interval.tv_nsec = 0;
-    timerspec.it_value.tv_sec = 0; //delay
-    timerspec.it_value.tv_nsec = 10;
+//    timerspec.it_interval.tv_sec = 3;
+//    timerspec.it_interval.tv_nsec = 0;
+//    timerspec.it_value.tv_sec = 0; //delay
+//    timerspec.it_value.tv_nsec = 10;
+
+    //CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
+
+    //unlock thmer signal
+    CHECK(sigprocmask(SIG_UNBLOCK, &mask, NULL));
+
+    return 0;
+}
+
+int create_timer_slave()
+{
+    //timer_t timerid_master;
+    struct sigevent se;
+    //struct itimerspec timerspec;
+    sigset_t mask;
+    struct sigaction sa;
+
+    //sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = SA_RESTART;
+    //sa.sa_sigaction = handler;
+    sa.sa_handler = handle_slave_timeout;
+
+    sigemptyset(&sa.sa_mask);
+    CHECK(sigaction(SIGRTMIN+1, &sa, NULL));
+
+    //block timer signal
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGRTMIN+1);
+
+    CHECK(sigprocmask(SIG_SETMASK, &mask, NULL));
+
+    //create timer
+    se.sigev_notify = SIGEV_SIGNAL;
+    se.sigev_signo = SIGRTMIN+1;
+    se.sigev_value.sival_ptr = &timerid_slave;
+
+
+    CHECK(timer_create(CLOCK_REALTIME, &se, &timerid_slave));
+
+    //start timer
+//    timerspec.it_interval.tv_sec = 3;
+//    timerspec.it_interval.tv_nsec = 0;
+//    timerspec.it_value.tv_sec = 0; //delay
+//    timerspec.it_value.tv_nsec = 10;
 
     //CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
@@ -509,15 +563,32 @@ int start_timer_master(int sec)
 {
     struct itimerspec timerspec;
 
-    timerspec.it_interval.tv_sec = sec;
+    timerspec.it_interval.tv_sec = 0;
     timerspec.it_interval.tv_nsec = 0;
-    timerspec.it_value.tv_sec = 0; //delay
-    timerspec.it_value.tv_nsec = 1000;
+    timerspec.it_value.tv_sec = sec; //delay
+    timerspec.it_value.tv_nsec = 0;
 
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "start sync master state timer:" <<sec<<" s"<<endl;
+            cout << "start sync master state timer:" <<sec<<"S"<<endl;
+
+    return 0;
+}
+
+int start_timer_slave(int sec)
+{
+    struct itimerspec timerspec;
+
+    timerspec.it_interval.tv_sec = 0; //when 0, timer expire once
+    timerspec.it_interval.tv_nsec = 0;
+    timerspec.it_value.tv_sec = sec; // first expire time
+    timerspec.it_value.tv_nsec = 0;
+
+    CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "start sync slave state timer:" <<sec<<"S"<<endl;
 
     return 0;
 }
@@ -539,12 +610,39 @@ int stop_timer_master()
     return 0;
 }
 
+int stop_timer_slave()
+{
+    struct itimerspec timerspec;
+
+    timerspec.it_interval.tv_sec = 0;
+    timerspec.it_interval.tv_nsec = 0;
+    timerspec.it_value.tv_sec = 0; //delay
+    timerspec.it_value.tv_nsec = 0;
+
+    CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "stop sync slave state timer" << endl;
+
+    return 0;
+}
+
 int delete_timer_master()
 {
     CHECK(timer_delete(timerid_master));
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
             cout << "delete sync master state timer" << endl;
+
+    return 0;
+}
+
+int delete_timer_slave()
+{
+    CHECK(timer_delete(timerid_slave));
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "delete sync slave state timer" << endl;
 
     return 0;
 }
