@@ -41,7 +41,7 @@ extern sysCfg CONFIG;
 
 int print_config();
 
-int load_config(char *pCfgFile);
+int load_config(const char *pCfgFile);
 
 int load_option(int argc, char **argv);
 

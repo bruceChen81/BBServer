@@ -25,6 +25,21 @@ int create_client_event_queue()
     return 1;
 }
 
+void destroy_client_event_queue()
+{
+    while(!isClientEventQueueEmpty())
+    {
+        delete deClientEventQueue();
+    }
+
+    pthread_mutex_destroy(&clientEvQueueLock);
+
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            std::cout << "Client event queue deleted!" << std::endl;
+
+    return;
+}
+
 
 void enClientEventQueue(clientEvent *pClientEv)
 {

@@ -32,7 +32,7 @@ int print_config()
     return 0;
 }
 
-int load_config(char *pCfgFile)
+int load_config(const char *pCfgFile)
 {
     int fd;
     unsigned int tmax, bp, sp;
@@ -49,9 +49,6 @@ int load_config(char *pCfgFile)
 
     memset(buf, 0, sizeof(buf));
     memset((void *) &CONFIG, 0, sizeof(CONFIG));
-
-    //save config file name
-    //strcpy(arg, pCfgFile);
 
     //set default value
     CONFIG.thMax = 20;
@@ -76,6 +73,8 @@ int load_config(char *pCfgFile)
     bytesRead = read(fd, buf, sizeof(buf));
 
     CHECK(bytesRead);
+
+    close(fd);
 
     //THMAX
     memset(arg, 0, sizeof(arg));
@@ -165,7 +164,7 @@ int load_config(char *pCfgFile)
         }
     }
 
-    print_config();
+    //print_config();
 
     return SUCCESS;
 }
@@ -321,7 +320,7 @@ int load_option(int argc, char **argv)
     if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag)
     {
         if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "Load config option success!" << endl;
+            cout << "Load config option command line success!" << endl;
 
         print_config();
     }

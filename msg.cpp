@@ -310,6 +310,10 @@ int process_client_msg(clientInfo *pClient, char *buf, int length, string& respo
         {
             response.append("4.0 BYE");
         }
+        else
+        {
+            response.append("ERROR COMMAND");
+        }
 
         return 0;
     }

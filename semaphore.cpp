@@ -72,8 +72,6 @@ void read_start()
 
 void read_end()
 {
-
-
     pthread_mutex_lock(&readerMutex);
 
     readerCnt--;
@@ -103,6 +101,17 @@ int init_bbfile_access_semahpores()
 
     return 0;
 }
+
+int destroy_bbfile_access_semahpores()
+{
+    pthread_mutex_destroy(&readerMutex);
+
+    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        std::cout << "BBfile access mutex deleted!" << std::endl;
+
+    return 0;
+}
+
 
 void bbfile_debug_wait(int time)
 {

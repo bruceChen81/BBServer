@@ -30,6 +30,8 @@ int test_list();
 
 int create_client_list();
 
+void destroy_client_list();
+
 int client_list_add(clientInfo *pClientInfo);
 
 int client_list_del(clientInfo *pClientInfo);
@@ -83,6 +85,9 @@ typedef struct _syncServerInfo
 
 
 int create_sync_server_list();
+
+void destroy_sync_server_list();
+
 
 int sync_server_list_add(syncServerInfo *psyncServerInfo);
 

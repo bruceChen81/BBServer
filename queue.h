@@ -24,6 +24,8 @@ typedef struct _clientEvent
 
 int create_client_event_queue();
 
+void destroy_client_event_queue();
+
 void enClientEventQueue(clientEvent *pClientEv);
 
 clientEvent *deClientEventQueue();

@@ -30,6 +30,12 @@ int create_tcp_server_sock(unsigned int port)
 
     CHECK_EXIT(fd);
 
+    int optval = 1;
+
+    //setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+
+    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+
     //bind
     sockaddr_in hint;
     hint.sin_family = AF_INET;
@@ -69,13 +75,11 @@ int start_conn_service()
 
     conn_add(sync_server_fd);
 
-    cout << "server_fd:" << server_fd<<"  sync fd:"<<sync_server_fd<<endl;
-
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
     {
-        cout << "Sync server created complete, listening --------->" << endl;
-        cout << "Server startup complete, waiting for client --------->" << endl<<endl;
+        cout << "Sync server socket created, listening ......" << endl;
+        cout << "Bulletin Board Server startup complete, waiting for client --------->" << endl<<endl;
     }
 
 
@@ -303,6 +307,18 @@ void conn_close_all()
     }
 
     pthread_mutex_unlock(&clientConnLock);
+
+    return;
+}
+
+void destroy_connection()
+{
+    conn_close_all();
+
+    pthread_mutex_destroy(&clientConnLock);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        cout << "All server and client connections closed!" << endl;
 
     return;
 }

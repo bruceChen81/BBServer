@@ -3,6 +3,8 @@
 
 int init_bbfile_access_semahpores();
 
+int destroy_bbfile_access_semahpores();
+
 void read_start();
 
 void read_end();

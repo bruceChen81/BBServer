@@ -9,22 +9,24 @@ using std::cout;
 using std::endl;
 
 std::string syncStateArray[SYNC_MAX] = {"NULL",
-                                  "DISCONNECT",
-                                  "IDLE",
-                                  "M_PRECOMMIT_MULTICASTED",
-                                  "M_PRECOMMITED",
-                                  "M_PRECOMMIT_UNSUCCESS",
-                                  "M_COMMITED",
-                                  "M_OPERATION_PERFORMED",
-                                  "M_OPERATION_UNSUCCESS",
+                                          "DISCONNECT",
+                                          "IDLE",
+                                          "M_PRECOMMIT_MULTICASTED",
+                                          "M_PRECOMMITED",
+                                          "M_PRECOMMIT_UNSUCCESS",
+                                          "M_COMMITED",
+                                          "M_OPERATION_PERFORMED",
+                                          "M_OPERATION_UNSUCCESS",
 
-                                  "S_PRECOMMIT_RECEIVED",
-                                  "S_PRECOMMIT_ACK",
-                                  "S_COMMITED",
-                                  "S_UNDO",
+                                          "S_PRECOMMIT_RECEIVED",
+                                          "S_PRECOMMIT_ACK",
+                                          "S_COMMITED",
+                                          "S_UNDO",
 
-                                  "U_WAITING_COMMIT",
-                                  "U_WAITING_SAVE"};
+                                          "U_WAITING_COMMIT",
+                                          "U_WAITING_SAVE",
+                                          "U_SAVING",
+                                          "U_SAVED"};
 
 
 LIST_HEAD(clientInfoHead, _clientInfo) clientList
@@ -189,6 +191,18 @@ int client_list_clear()
     pthread_mutex_unlock(&clientListLock);
 
     return 0;
+}
+
+void destroy_client_list()
+{
+    client_list_clear();
+
+    pthread_mutex_destroy(&clientListLock);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        cout << "Client list deleted!" << endl;
+
+    return;
 }
 
 clientInfo *client_list_find(int fd)
@@ -539,6 +553,19 @@ int sync_server_list_clear()
 
     return 0;
 }
+
+void destroy_sync_server_list()
+{
+    sync_server_list_clear();
+
+    pthread_mutex_destroy(&syncServerListLock);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            cout << "Sync server list deleted!" << endl;
+
+    return;
+}
+
 
 syncServerInfo *sync_server_list_find(int fd)
 {

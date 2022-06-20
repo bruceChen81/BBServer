@@ -37,6 +37,9 @@ typedef enum clientEv
 }clientEv;
 
 
+int sys_bootup(int argc, char *argv[]);
+
+int sys_terminate();
 
 
 #define CHECK_EXIT(X) ({int __val = (X); (__val == -1 ? \

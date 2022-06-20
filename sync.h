@@ -28,6 +28,8 @@ typedef enum syncState
     //user client
     SYNC_U_WAITING_COMMIT,
     SYNC_U_WAITING_SAVE,
+    SYNC_U_SAVING,
+    SYNC_U_SAVED,
 
     SYNC_MAX
 
@@ -79,5 +81,7 @@ int start_timer_slave(int sec);
 int stop_timer_slave();
 
 int delete_timer_slave();
+
+void destroy_timer();
 
 #endif // SYNC_H_INCLUDED

@@ -482,14 +482,15 @@ int create_tcp_connection_thread()
 }
 
 
-
-int main(int argc, char *argv[])
+int sys_load_config(int argc, char *argv[])
 {
     if (load_config((char *)DEFAULT_CFG_FILE) >= 0)
     {
         if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-                cout << "Load config file success!" << endl;
+            cout << "Load config file success!" << endl;
     }
+
+    print_config();
 
     load_option(argc, argv);
 
@@ -501,6 +502,45 @@ int main(int argc, char *argv[])
     }
 
     load_msg_number();
+
+    return 0;
+}
+
+int sys_reload_config_sighub()
+{
+
+    //relaod config file
+    bool debug = CONFIG.debug;
+
+    string cfgFile = string(CONFIG.cfgFile);
+
+    //load_config((char *)DEFAULT_CFG_FILE);
+    load_config(cfgFile.c_str());
+
+
+    CONFIG.debug = debug;
+
+    CONFIG.debugLevel = debug ? DEBUG_LEVEL_D : DEBUG_LEVEL_NONE;
+
+    print_config();
+
+    //check if bbfile is set
+    if(!strlen(CONFIG.bbFile))
+    {
+        cout << "BBFILE name is not configured, please set by config file or command line -b !!!"<< endl;
+        exit(-1);
+    }
+
+    load_msg_number();
+
+    return 0;
+}
+
+
+
+int sys_bootup()
+{
+    cout << "System booting up......................" <<endl;
 
     if(create_client_list() >= 0)
     {
@@ -539,9 +579,6 @@ int main(int argc, char *argv[])
             cout << "TCP connection process thread created!" << endl;
     }
 
-    //sleep(1);
-
-
     if(create_timer_master() >= 0)
     {
         if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
@@ -554,15 +591,85 @@ int main(int argc, char *argv[])
             cout << "Sync slave timer created!" << endl;
     }
 
+    return 0;
+}
 
- /*
-    if(init_sync_server_connection() >= 0)
-    {
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "Init sync server connection success!" << endl;
-    }
+int sys_terminate()
+{
+    cout << "System terminating......" <<endl;
 
-*/
+
+    destroy_client_list();
+
+    destroy_client_event_queue();
+
+    destroy_sync_server_list();
+
+    destroy_timer();
+
+    destroy_bbfile_access_semahpores();
+
+    destroy_connection();
+
+
+    //close opend file
+
+    return 0;
+}
+
+void sigint_handler(int sig)
+{
+    cout << "catch SIGINT signal!" <<endl;
+
+    sys_terminate();
+
+    signal(SIGINT, SIG_DFL);
+
+    kill(getpid(), SIGINT);
+}
+
+void sigquit_handler(int sig)
+{
+    cout << "catch SIGQUIT signal!" <<endl;
+
+    //waiting end of file ope
+
+    //write_start();
+
+    sys_terminate();
+
+    kill(getpid(), SIGTERM);
+}
+
+void sighup_handler(int sig)
+{
+    cout << "catch SIGHUP signal!" <<endl;
+
+    sys_terminate();
+
+    sleep(1);
+
+    char *args[] = {"./bbserv", "-d", NULL};
+
+    execve(args[0], args, NULL);
+}
+
+
+int main(int argc, char *argv[])
+{
+    //signal(SIGINT, sigint_handler);
+
+    signal(SIGINT, sighup_handler);
+
+    signal(SIGQUIT, sigquit_handler);
+
+    //signal(SIGHUP, sighup_handler);
+
+
+    sys_load_config(argc, argv);
+
+    sys_bootup();
+
 
     string str;
 

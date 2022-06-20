@@ -629,22 +629,31 @@ int stop_timer_slave()
 
 int delete_timer_master()
 {
-    CHECK(timer_delete(timerid_master));
+    timer_delete(timerid_master);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "delete sync master state timer" << endl;
+            cout << "Sync master state timer deleted!" << endl;
 
     return 0;
 }
 
 int delete_timer_slave()
 {
-    CHECK(timer_delete(timerid_slave));
+    timer_delete(timerid_slave);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-            cout << "delete sync slave state timer" << endl;
+            cout << "Sync slave state timer deleted!" << endl;
 
     return 0;
+}
+
+void destroy_timer()
+{
+    delete_timer_master();
+
+    delete_timer_slave();
+
+    return;
 }
 
 

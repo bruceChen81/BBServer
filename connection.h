@@ -21,5 +21,7 @@ int create_tcp_server_sock(unsigned int port);
 
 int start_conn_service();
 
+void destroy_connection();
+
 
 #endif // CONNECTION_H_INCLUDED
