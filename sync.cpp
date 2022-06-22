@@ -350,7 +350,7 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     ret = connect(sockfd, (sockaddr *)&servaddr, sizeof(servaddr));
 
-    CHECK(ret);
+    //CHECK(ret);
 
     if(ret == 0)
     {

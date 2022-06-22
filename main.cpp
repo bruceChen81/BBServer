@@ -657,6 +657,11 @@ void sighup_handler(int sig)
 
 int main(int argc, char *argv[])
 {
+    if(CONFIG.debug)
+    {
+        daemon(1,1);
+    }
+
     //signal(SIGINT, sigint_handler);
 
     signal(SIGINT, sighup_handler);
@@ -668,7 +673,33 @@ int main(int argc, char *argv[])
 
     sys_load_config(argc, argv);
 
+    //redirect stdout to bbserv.log
+    if(CONFIG.debug)
+    {
+        int file = open("bbserv.log", O_WRONLY | O_CREAT, 0777);
+
+        dup2(file, STDOUT_FILENO);
+        close(file);
+    }
+
+    //write bbserv.pid
+    int fd = open("bbserv.pid", O_WRONLY | O_CREAT, 0777);
+    CHECK(fd);
+
+    int pid = getpid();
+
+    string strpid = std::to_string(pid);
+
+    write(fd, strpid.c_str(), strpid.length());
+
+    close(fd);
+
+
+
+
     sys_bootup();
+
+
 
 
     string str;

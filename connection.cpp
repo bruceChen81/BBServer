@@ -92,7 +92,7 @@ int start_conn_service()
         //Invoke select()
         ret = select(FD_SETSIZE, &read_fd_set, NULL, NULL, &tv);
 
-        CHECK(ret);
+        //CHECK(ret);
 
         if (ret >= 0)
         {
