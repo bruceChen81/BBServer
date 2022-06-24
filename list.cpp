@@ -294,7 +294,7 @@ int sync_set_slave_state(clientInfo *pClient, syncState state)
             break;
 
         case SYNC_S_COMMITED:
-            //stop_timer_slave();
+            stop_timer_slave();
             break;
 
         default:
@@ -358,11 +358,20 @@ int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& ms
 
     pthread_mutex_lock(&clientListLock);
 
+    if(!pClient->msg.empty())
+    {
+        pClient->msg.clear();
+    }
+
+    if(!pClient->msgNumber.empty())
+    {
+        pClient->msgNumber.clear();
+    }
+
     pClient->cmd = cmd;
     pClient->msg += msg;
     pClient->msgNumber += msg.substr(0, msg.find("/"));
     pClient->slaveState = SYNC_U_WAITING_COMMIT;
-    //pClient->waitingSync = true;
 
     pthread_mutex_unlock(&clientListLock);
 
@@ -678,7 +687,7 @@ int sync_set_master_state(syncState state)
         case SYNC_M_PRECOMMIT_UNSUCCESS:
         case SYNC_M_OPERATION_PERFORMED:
         case SYNC_M_OPERATION_UNSUCCESS:
-            //stop_timer_master();
+            stop_timer_master();
             break;
 
         default:

@@ -145,7 +145,9 @@ int proc_client_ev_recv(clientEvent* pClientEv)
 
         if(pClient->type == CLIENT_SYNC_MASTER)
         {
-            //sync_set_master_state(SYNC_DISCONNECT);
+            //find server node by fd
+            syncServerInfo *pServer = sync_server_list_find(pClient->fd);
+            sync_server_list_set_state(pServer, SYNC_DISCONNECT);
         }
 
         client_list_del(pClient);
@@ -179,17 +181,14 @@ int proc_client_ev_recv(clientEvent* pClientEv)
         {
             send_response_to_client(pClient, response);
 
-//            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
-//                cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
-//
-//            bytesSend = send(pClient->fd, response.c_str(), response.size(),0);
-//            CHECK(bytesSend);
-
             // if QUIT cmd, disconnet the client
-            if(0 == response.compare(0, response.size()-2, "4.0 BYE"))
+            string bye = "4.0 BYE";
+            if(0 == response.compare(0, bye.size(), bye))
             {
-                //conn_del(pClient->fd);
-                //client_list_del(pClient);
+                sleep(1);
+
+                conn_del(pClient->fd);
+                client_list_del(pClient);
             }
         }
     }
@@ -272,7 +271,7 @@ int proc_sync_ev_commit_success(clientEvent *pClientEv)
         }
         else if(pClientUser->cmd == CLIENT_CMD_REPLACE)
         {
-            ret = save_msg_write(pClientUser->msg);
+            ret = save_msg_replace(pClientUser->msg);
             if(ret == 0)
             {
                 response.append("3.0 WROTE ");
@@ -649,18 +648,17 @@ void sighup_handler(int sig)
 
     sleep(1);
 
-    char *args[] = {"./bbserv", "-d", NULL};
+    const char *args1 = "./bbserv";
+    char *const args[] = {"./bbserv", "-f", NULL};
 
-    execve(args[0], args, NULL);
+    //execve(args[0], args, NULL);
+    execve(args1, args, NULL);
 }
 
 
 int main(int argc, char *argv[])
 {
-    if(CONFIG.debug)
-    {
-        daemon(1,1);
-    }
+
 
     //signal(SIGINT, sigint_handler);
 
@@ -673,8 +671,13 @@ int main(int argc, char *argv[])
 
     sys_load_config(argc, argv);
 
+    if(CONFIG.daemon)
+    {
+        daemon(1,1);
+    }
+
     //redirect stdout to bbserv.log
-    if(CONFIG.debug)
+    if(CONFIG.daemon)
     {
         int file = open("bbserv.log", O_WRONLY | O_CREAT, 0777);
 
@@ -695,11 +698,7 @@ int main(int argc, char *argv[])
     close(fd);
 
 
-
-
     sys_bootup();
-
-
 
 
     string str;

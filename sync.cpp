@@ -185,8 +185,6 @@ int sync_send_precommit()
         sync_set_master_state(SYNC_M_PRECOMMIT_MULTICASTED);
     }
 
-    //start timer, when timeout check state
-
     return 0;
 }
 
@@ -223,7 +221,6 @@ int sync_send_abort()
         sync_set_master_state(SYNC_IDLE);
     }
 
-    //start timer, when timeout check state
 
     return 0;
 }
@@ -279,8 +276,6 @@ int sync_send_commit(clientCmdType type, string& msgbody)
         sync_set_master_state(SYNC_M_COMMITED);
     }
 
-    //start timer, when timeout check state
-
     return 0;
 }
 
@@ -328,8 +323,6 @@ int sync_send_success(bool isSuccessful, string& msgNumber)
     {
         sync_set_master_state(SYNC_IDLE);
     }
-
-    //start timer, when timeout check state
 
     return 0;
 }
