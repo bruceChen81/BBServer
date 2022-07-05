@@ -1,13 +1,11 @@
-#include <iostream>
-#include <sys/select.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <string>
-#include <time.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <netdb.h>
+/*
+bootup.cpp
+
+Created by Dianyong Chen, 2022-06-18
+
+CS590 Master Project(BBServer) @ Bishop's University
+
+*/
 
 #include "common.h"
 #include "config.h"
@@ -15,12 +13,6 @@
 #include "connection.h"
 #include "queue.h"
 #include "sync.h"
-
-
-
-using std::cout;
-using std::endl;
-using std::string;
 
 
 int init_sync_server_list()
@@ -72,7 +64,7 @@ int init_sync_server_list()
                 cout << "init_sync_server_list find server:" << server <<":"<<serverport<< endl;
 
             //add to server list
-            syncServerInfo *pServer = new syncServerInfo;
+            syncServerCB *pServer = new syncServerCB;
 
             pServer->fd = -1;
 
@@ -108,7 +100,7 @@ int init_sync_server_list()
 
 int init_sync_server_connection()
 {
-    syncServerInfo *pServer;
+    syncServerCB *pServer;
     int fd = -1;
     int initState = 0;
 
@@ -158,7 +150,7 @@ int sync_send_precommit()
     string msg = string("PRECOMMIT");
     msg += "\n";
 
-    syncServerInfo *pServer = sync_server_list_get_first();
+    syncServerCB *pServer = sync_server_list_get_first();
 
     while(pServer != nullptr)
     {
@@ -194,7 +186,7 @@ int sync_send_abort()
     string msg = string("ABORT");
     msg += "\n";
 
-    syncServerInfo *pServer = sync_server_list_get_first();
+    syncServerCB *pServer = sync_server_list_get_first();
 
     while(pServer != nullptr)
     {
@@ -248,7 +240,7 @@ int sync_send_commit(clientCmdType type, string& msgbody)
     msg += msgbody;
     msg += "\n";
 
-    syncServerInfo *pServer = sync_server_list_get_first();
+    syncServerCB *pServer = sync_server_list_get_first();
 
     while(pServer != nullptr)
     {
@@ -297,7 +289,7 @@ int sync_send_success(bool isSuccessful, string& msgNumber)
 
     msg += "\n";
 
-    syncServerInfo *pServer = sync_server_list_get_first();
+    syncServerCB *pServer = sync_server_list_get_first();
 
     while(pServer != nullptr)
     {
@@ -363,8 +355,8 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
 
     //add new client to client list
-    clientInfo *pClient = new clientInfo;
-    memset((void *)pClient, 0, sizeof(clientInfo));
+    clientCB *pClient = new clientCB;
+    memset((void *)pClient, 0, sizeof(clientCB));
 
     pClient->fd = sockfd;
     strcpy(pClient->ip, ip.c_str());
@@ -380,7 +372,7 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
 bool sync_check_server_state(syncState state)
 {
-    syncServerInfo *pServer = sync_server_list_get_first();
+    syncServerCB *pServer = sync_server_list_get_first();
 
     while(pServer != nullptr)
     {
@@ -402,9 +394,9 @@ bool sync_check_service_enable()
 }
 
 
-int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& msg)
+int sync_send_event(clientEvType type, std::string& msgNumber, int fd, std::string& msg)
 {
-    clientEvent *pSyncEv = new clientEvent;
+    clientEventCB *pSyncEv = new clientEventCB;
 
     pSyncEv->event = type;
     pSyncEv->msgNumber = msgNumber;
@@ -416,9 +408,9 @@ int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& 
     return 0;
 }
 
-int sync_send_event_timeout(clientEv type)
+int sync_send_event_timeout(clientEvType type)
 {
-    clientEvent *pSyncEv = new clientEvent;
+    clientEventCB *pSyncEv = new clientEventCB;
 
     pSyncEv->event = type;
 

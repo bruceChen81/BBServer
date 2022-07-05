@@ -1,11 +1,19 @@
-#include <unistd.h>
-#include <semaphore.h>
+/*
+queue.cpp
+
+Created by Dianyong Chen, 2022-05-28
+
+CS590 Master Project(BBServer) @ Bishop's University
+
+*/
+
+#include "common.h"
 
 #include "queue.h"
 #include "config.h"
 
 //client event queue
-STAILQ_HEAD(clientEvHead, _clientEvent) clientEvQueue
+STAILQ_HEAD(clientEvCBHead, _clientEventCB) clientEvQueue
         = STAILQ_HEAD_INITIALIZER(clientEvQueue);
 
 pthread_mutex_t clientEvQueueLock;
@@ -41,7 +49,7 @@ void destroy_client_event_queue()
 }
 
 
-void enClientEventQueue(clientEvent *pClientEv)
+void enClientEventQueue(clientEventCB *pClientEv)
 {
     if(CONFIG.debugLevel >= DEBUG_LEVEL_QUEUE)
         std::cout << "enClientEvQueue type:" << pClientEv->event << " fd:" << pClientEv->fd << std::endl;
@@ -57,9 +65,9 @@ void enClientEventQueue(clientEvent *pClientEv)
     return;
 }
 
-clientEvent *deClientEventQueue()
+clientEventCB *deClientEventQueue()
 {
-    clientEvent *p = nullptr;
+    clientEventCB *p = nullptr;
 
     pthread_mutex_lock(&clientEvQueueLock);
 

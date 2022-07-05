@@ -1,8 +1,13 @@
+/*
+semaphore.cpp
 
-#include <iostream>
-#include <unistd.h>
-#include <semaphore.h>
-#include <string>
+Created by Dianyong Chen, 2022-06-01
+
+CS590 Master Project(BBServer) @ Bishop's University
+
+*/
+
+#include "common.h"
 
 #include "semaphore.h"
 #include "config.h"

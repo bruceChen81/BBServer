@@ -1,20 +1,16 @@
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <time.h>
-#include <climits>
+/*
+config.cpp
+
+Created by Dianyong Chen, 2022-05-26
+
+CS590 Master Project(BBServer) @ Bishop's University
+
+*/
+
 
 #include "common.h"
 #include "config.h"
 
-using std::cout;
-using std::endl;
-using std::string;
-using std::fstream;
-using std::ios;
 
 sysCfg CONFIG;
 
@@ -356,6 +352,13 @@ int getParaFromBuf(char *buf, char *para, char *keyword)
 }
 
 
+//message number
+
+int msgNumber = 0;
+
+pthread_mutex_t clientMsgNoLock;
+
+
 int get_last_line(string& lastline)
 {
     //string filename = "bbfile";
@@ -396,6 +399,74 @@ int get_last_line(string& lastline)
 
         myFile.close();
     }
+
+    return 0;
+}
+
+
+int get_new_msg_number(std::string& strNumber)
+{
+    int number;
+
+    pthread_mutex_lock(&clientMsgNoLock);
+
+    msgNumber++;
+
+    if(msgNumber == INT_MAX)
+    {
+        msgNumber = 1;
+    }
+
+    number = msgNumber;
+
+    pthread_mutex_unlock(&clientMsgNoLock);
+
+    strNumber += std::to_string(number);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "get new msg number:" << strNumber <<endl;
+
+    return 0;
+}
+
+
+int load_msg_number()
+{
+    string lastline;
+    string msgNumLast;
+
+    pthread_mutex_init(&clientMsgNoLock, NULL);
+
+    get_last_line(lastline);
+
+    msgNumLast = lastline.substr(0, lastline.find("/"));
+
+    if(msgNumLast.empty())
+    {
+        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            cout << "can not read last message number!" << endl;
+
+        return -1;
+    }
+
+    msgNumber = stoi(msgNumLast);
+
+    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "load message number:" << msgNumber << endl;
+
+    return 0;
+}
+
+int get_time()
+{
+    time_t now = time(0);
+
+    tm *ltime = localtime(&now);
+
+    cout << 1900 + ltime->tm_year << endl;
+    cout << 1 + ltime->tm_mon << endl;
+    cout << ltime->tm_mday << endl;
+    cout << ltime->tm_hour << ":" << ltime->tm_min << ":" << ltime->tm_sec<<endl;
 
     return 0;
 }

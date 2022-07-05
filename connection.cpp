@@ -1,18 +1,20 @@
-#include <iostream>
-#include <sys/select.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <string.h>
+/*
+connection.cpp
+
+Created by Dianyong Chen, 2022-05-26
+
+CS590 Master Project(BBServer) @ Bishop's University
+
+*/
 
 #include "common.h"
+
 #include "config.h"
 #include "queue.h"
 #include "connection.h"
 #include "list.h"
 #include "sync.h"
 
-using std::cout;
-using std::endl;
 
 
 int connections[MAX_CONN];
@@ -99,7 +101,7 @@ int start_conn_service()
             if(FD_ISSET(server_fd, &read_fd_set))//check if the fd with event is the sever fd, accept new connection
             {
                 //en client event queue, to accept
-                clientEvent *pClientEv = new clientEvent;
+                clientEventCB *pClientEv = new clientEventCB;
 
                 pClientEv->event = EV_ACCEPT;
                 pClientEv->fd = server_fd;
@@ -110,7 +112,7 @@ int start_conn_service()
             else if(FD_ISSET(sync_server_fd, &read_fd_set))//check if the fd with event is the sync sever fd, accept new connection
             {
                 //en client event queue, to accept
-                clientEvent *pClientEv = new clientEvent;
+                clientEventCB *pClientEv = new clientEventCB;
 
                 pClientEv->event = EV_ACCEPT;
                 pClientEv->fd = sync_server_fd;
@@ -149,7 +151,7 @@ void conn_check_fd_set(fd_set *pFdSet)
     {
         if((connections[i] > 0) && FD_ISSET(connections[i], pFdSet))
         {
-            clientEvent *pClientEv = new clientEvent;
+            clientEventCB *pClientEv = new clientEventCB;
 
             //memset(pClientEv, 0, sizeof(clientEv));
 

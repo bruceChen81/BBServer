@@ -1,12 +1,19 @@
-#include <iostream>
-#include <unistd.h>
-#include <string.h>
+/*
+list.cpp
+
+Created by Dianyong Chen, 2022-05-26
+
+CS590 Master Project(BBServer) @ Bishop's University
+
+*/
+
+
+#include "common.h"
 
 #include "list.h"
 #include "config.h"
 
-using std::cout;
-using std::endl;
+
 
 std::string syncStateArray[SYNC_MAX] = {"NULL",
                                           "DISCONNECT",
@@ -29,7 +36,7 @@ std::string syncStateArray[SYNC_MAX] = {"NULL",
                                           "U_SAVED"};
 
 
-LIST_HEAD(clientInfoHead, _clientInfo) clientList
+LIST_HEAD(clientCBHead, _clientCB) clientList
         = LIST_HEAD_INITIALIZER(clientList);
 
 pthread_mutex_t clientListLock;
@@ -37,13 +44,13 @@ pthread_mutex_t clientListLock;
 
 int test_list()
 {
-    clientInfo *pClient1, *pClient2, *np;
+    clientCB *pClient1, *pClient2, *np;
 
-    pClient1 = new clientInfo;
+    pClient1 = new clientCB;
 
     pClient1->fd = 1;
 
-    pClient2 = new clientInfo;
+    pClient2 = new clientCB;
 
     pClient2->fd = 2;
 
@@ -70,11 +77,11 @@ int test_list()
 
 LIST_INIT(&head);
 
-clientInfo *n1, *n2, *n3, *np, *np_temp;
+clientCB *n1, *n2, *n3, *np, *np_temp;
 
-n1 = new clientInfo;
-n2 = new clientInfo;
-n3 = new clientInfo;
+n1 = new clientCB;
+n2 = new clientCB;
+n3 = new clientCB;
 
 n1->fd =1;
 n2->fd =2;
@@ -133,43 +140,43 @@ int create_client_list()
     return 0;
 }
 
-int client_list_add(clientInfo *pClientInfo)
+int client_list_add(clientCB *pClient)
 {
-    if(!pClientInfo)
+    if(!pClient)
     {
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
 
-    LIST_INSERT_HEAD(&clientList, pClientInfo, p);
+    LIST_INSERT_HEAD(&clientList, pClient, p);
 
     pthread_mutex_unlock(&clientListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "client_list_add, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<" Type:"<<pClientInfo->type<<endl;
+        cout << "client_list_add, fd:" << pClient->fd << " IP:" << pClient->ip << " Port:" << pClient->port <<" Type:"<<pClient->type<<endl;
 
     return 0;
 
 }
 
-int client_list_del(clientInfo *pClientInfo)
+int client_list_del(clientCB *pClient)
 {
-    if(!pClientInfo)
+    if(!pClient)
     {
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
 
-    LIST_REMOVE(pClientInfo, p);
+    LIST_REMOVE(pClient, p);
 
     pthread_mutex_unlock(&clientListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "client_list_del, fd:" << pClientInfo->fd << " IP:" << pClientInfo->ip << " Port:" << pClientInfo->port <<" Type:"<<pClientInfo->type<<endl;
+        cout << "client_list_del, fd:" << pClient->fd << " IP:" << pClient->ip << " Port:" << pClient->port <<" Type:"<<pClient->type<<endl;
 
-    delete pClientInfo;
+    delete pClient;
 
     return 0;
 
@@ -177,7 +184,7 @@ int client_list_del(clientInfo *pClientInfo)
 
 int client_list_clear()
 {
-    clientInfo *np;
+    clientCB *np;
 
     pthread_mutex_lock(&clientListLock);
 
@@ -205,9 +212,9 @@ void destroy_client_list()
     return;
 }
 
-clientInfo *client_list_find(int fd)
+clientCB *client_list_find(int fd)
 {
-    clientInfo *np;
+    clientCB *np;
 
     LIST_FOREACH(np, &clientList, p)
     {
@@ -225,7 +232,7 @@ clientInfo *client_list_find(int fd)
 
 int client_list_save_name(int fd, const char *str)
 {
-    clientInfo *np;
+    clientCB *np;
     int ret = -1;
 
     pthread_mutex_lock(&clientListLock);
@@ -253,13 +260,13 @@ bool client_list_empty()
     return LIST_EMPTY(&clientList);
 }
 
-clientInfo *client_list_get_first()
+clientCB *client_list_get_first()
 {
     return LIST_FIRST(&clientList);
 
 }
 
-clientInfo *client_list_get_next(clientInfo *pClient)
+clientCB *client_list_get_next(clientCB *pClient)
 {
     return LIST_NEXT(pClient,p);
 }
@@ -271,7 +278,7 @@ clientInfo *client_list_get_next(clientInfo *pClient)
     SYNC_S_COMMITED,           //9 received commit, performed operation, send successful
     SYNC_S_UNDO,               //10 operation unsuccessful, undo
 */
-int sync_set_slave_state(clientInfo *pClient, syncState state)
+int sync_set_slave_state(clientCB *pClient, syncState state)
 {
     if(!pClient)
     {
@@ -304,7 +311,7 @@ int sync_set_slave_state(clientInfo *pClient, syncState state)
     return 0;
 }
 
-syncState sync_get_slave_state(clientInfo *pClient)
+syncState sync_get_slave_state(clientCB *pClient)
 {
     syncState state = SYNC_MAX;
 
@@ -329,7 +336,7 @@ syncState sync_get_slave_state(clientInfo *pClient)
     SYNC_U_WAITING_COMMIT,
     SYNC_U_WAITING_SAVE,
 */
-int sync_set_client_state(clientInfo *pClient, syncState state)
+int sync_set_client_state(clientCB *pClient, syncState state)
 {
     if(!pClient)
     {
@@ -349,7 +356,7 @@ int sync_set_client_state(clientInfo *pClient, syncState state)
 }
 
 
-int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& msg)
+int sync_save_client_cmd(clientCB *pClient, clientCmdType cmd, std::string& msg)
 {
     if(!pClient)
     {
@@ -381,7 +388,7 @@ int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& ms
     return 1;
 }
 
-int sync_clear_client_cmd(clientInfo *pClient)
+int sync_clear_client_cmd(clientCB *pClient)
 {
     if(!pClient)
     {
@@ -404,9 +411,9 @@ int sync_clear_client_cmd(clientInfo *pClient)
     return 1;
 }
 
-clientInfo * sync_find_waiting_commit_user_client()
+clientCB * sync_find_waiting_commit_user_client()
 {
-    clientInfo *np, *ret = nullptr;
+    clientCB *np, *ret = nullptr;
 
 
     pthread_mutex_lock(&clientListLock);
@@ -424,9 +431,9 @@ clientInfo * sync_find_waiting_commit_user_client()
     return ret;
 }
 
-clientInfo * sync_find_waiting_save_user_client()
+clientCB * sync_find_waiting_save_user_client()
 {
-    clientInfo *np, *ret = nullptr;
+    clientCB *np, *ret = nullptr;
 
 
     pthread_mutex_lock(&clientListLock);
@@ -444,9 +451,9 @@ clientInfo * sync_find_waiting_save_user_client()
     return ret;
 }
 
-clientInfo * sync_find_waiting_commit_slave_client()
+clientCB * sync_find_waiting_commit_slave_client()
 {
-    clientInfo *np, *ret = nullptr;
+    clientCB *np, *ret = nullptr;
 
     pthread_mutex_lock(&clientListLock);
 
@@ -469,7 +476,7 @@ clientInfo * sync_find_waiting_commit_slave_client()
 
 
 
-LIST_HEAD(syncServerInfoHead, _syncServerInfo) syncServerList
+LIST_HEAD(syncServerCBHead, _syncServerCB) syncServerList
         = LIST_HEAD_INITIALIZER(syncServerList);
 
 
@@ -487,20 +494,20 @@ int create_sync_server_list()
     return 0;
 }
 
-int sync_server_list_add(syncServerInfo *psyncServerInfo)
+int sync_server_list_add(syncServerCB *psyncServer)
 {
-    if(!psyncServerInfo)
+    if(!psyncServer)
     {
         return -1;
     }
 
     pthread_mutex_lock(&syncServerListLock);
 
-    syncServerInfo *np = LIST_FIRST(&syncServerList);
+    syncServerCB *np = LIST_FIRST(&syncServerList);
 
     if(np == nullptr)
     {
-        LIST_INSERT_HEAD(&syncServerList, psyncServerInfo, p);
+        LIST_INSERT_HEAD(&syncServerList, psyncServer, p);
     }
     else
     {
@@ -510,36 +517,36 @@ int sync_server_list_add(syncServerInfo *psyncServerInfo)
         }
 
         //insert the last
-        LIST_INSERT_AFTER(np, psyncServerInfo, p);
+        LIST_INSERT_AFTER(np, psyncServer, p);
     }
 
     pthread_mutex_unlock(&syncServerListLock);
 
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "sync_server_list_add, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
+        cout << "sync_server_list_add, fd:" << psyncServer->fd << " IP:" << psyncServer->ip << " Port:" << psyncServer->port <<endl;
 
     return 0;
 
 }
 
-int sync_server_list_del(syncServerInfo *psyncServerInfo)
+int sync_server_list_del(syncServerCB *psyncServer)
 {
-    if(!psyncServerInfo)
+    if(!psyncServer)
     {
         return -1;
     }
 
     pthread_mutex_lock(&syncServerListLock);
 
-    LIST_REMOVE(psyncServerInfo, p);
+    LIST_REMOVE(psyncServer, p);
 
     pthread_mutex_unlock(&syncServerListLock);
 
     if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "sync_server_list_del, fd:" << psyncServerInfo->fd << " IP:" << psyncServerInfo->ip << " Port:" << psyncServerInfo->port <<endl;
+        cout << "sync_server_list_del, fd:" << psyncServer->fd << " IP:" << psyncServer->ip << " Port:" << psyncServer->port <<endl;
 
-    delete psyncServerInfo;
+    delete psyncServer;
 
     return 0;
 
@@ -547,7 +554,7 @@ int sync_server_list_del(syncServerInfo *psyncServerInfo)
 
 int sync_server_list_clear()
 {
-    syncServerInfo *np;
+    syncServerCB *np;
 
     pthread_mutex_lock(&syncServerListLock);
 
@@ -576,9 +583,9 @@ void destroy_sync_server_list()
 }
 
 
-syncServerInfo *sync_server_list_find(int fd)
+syncServerCB *sync_server_list_find(int fd)
 {
-    syncServerInfo *np;
+    syncServerCB *np;
 
     LIST_FOREACH(np, &syncServerList, p)
     {
@@ -599,18 +606,18 @@ bool sync_server_list_empty()
     return LIST_EMPTY(&syncServerList);
 }
 
-syncServerInfo *sync_server_list_get_first()
+syncServerCB *sync_server_list_get_first()
 {
     return LIST_FIRST(&syncServerList);
 
 }
 
-syncServerInfo *sync_server_list_get_next(syncServerInfo *pServer)
+syncServerCB *sync_server_list_get_next(syncServerCB *pServer)
 {
     return LIST_NEXT(pServer,p);
 }
 
-int sync_server_list_set_state(syncServerInfo *pServer, syncState state)
+int sync_server_list_set_state(syncServerCB *pServer, syncState state)
 {
     if(!pServer)
     {
@@ -629,7 +636,7 @@ int sync_server_list_set_state(syncServerInfo *pServer, syncState state)
     return 1;
 }
 
-int sync_server_list_set_fd(syncServerInfo *pServer, int fd)
+int sync_server_list_set_fd(syncServerCB *pServer, int fd)
 {
     if(!pServer)
     {
@@ -659,7 +666,7 @@ int sync_server_list_set_fd(syncServerInfo *pServer, int fd)
 */
 int sync_set_master_state(syncState state)
 {
-    syncServerInfo *pServer;
+    syncServerCB *pServer;
 
     pthread_mutex_lock(&syncServerListLock);
 
@@ -701,7 +708,7 @@ int sync_set_master_state(syncState state)
 
 syncState sync_get_master_state()
 {
-    syncServerInfo *pServer;
+    syncServerCB *pServer;
 
     syncState state = SYNC_MAX;
 

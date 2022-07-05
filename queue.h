@@ -1,34 +1,30 @@
 #ifndef MYQUEUE_H_INCLUDED
 #define MYQUEUE_H_INCLUDED
 
-#include <iostream>
-#include <arpa/inet.h>
-#include <sys/queue.h>
-#include <pthread.h>
 
-#include "list.h"
+#include "common.h"
 
 
-typedef struct _clientEvent
+typedef struct _clientEventCB
 {
     int fd;
-    clientEv event;
+    clientEvType event;
     clientType type;
     std::string msgNumber;
     std::string response;
 
-    STAILQ_ENTRY(_clientEvent) p;
+    STAILQ_ENTRY(_clientEventCB) p;
 
-}clientEvent;
+}clientEventCB;
 
 
 int create_client_event_queue();
 
 void destroy_client_event_queue();
 
-void enClientEventQueue(clientEvent *pClientEv);
+void enClientEventQueue(clientEventCB *pClientEv);
 
-clientEvent *deClientEventQueue();
+clientEventCB *deClientEventQueue();
 
 bool isClientEventQueueEmpty();
 

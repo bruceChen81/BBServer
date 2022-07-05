@@ -1,7 +1,7 @@
 #ifndef LIST_H_INCLUDED
 #define LIST_H_INCLUDED
 
-#include <sys/queue.h>
+
 
 #include "sync.h"
 
@@ -9,7 +9,7 @@
 
 
 
-typedef struct _clientInfo
+typedef struct _clientCB
 {
     int fd;
     clientType type;
@@ -22,9 +22,9 @@ typedef struct _clientInfo
     std::string msgNumber;
     std::string msg;
 
-    LIST_ENTRY(_clientInfo) p;
+    LIST_ENTRY(_clientCB) p;
 
-}clientInfo;
+}clientCB;
 
 int test_list();
 
@@ -32,44 +32,44 @@ int create_client_list();
 
 void destroy_client_list();
 
-int client_list_add(clientInfo *pClientInfo);
+int client_list_add(clientCB *pClientInfo);
 
-int client_list_del(clientInfo *pClientInfo);
+int client_list_del(clientCB *pClientInfo);
 
 int client_list_clear();
 
-clientInfo *client_list_find(int fd);
+clientCB *client_list_find(int fd);
 
-clientInfo *client_list_get_first();
+clientCB *client_list_get_first();
 
-clientInfo *client_list_get_next(clientInfo *pClient);
+clientCB *client_list_get_next(clientCB *pClient);
 
 int client_list_save_name(int fd, const char *str);
 
 bool client_list_empty();
 
-int sync_set_slave_state(clientInfo *pClient, syncState state);
+int sync_set_slave_state(clientCB *pClient, syncState state);
 
-syncState sync_get_slave_state(clientInfo *pClient);
+syncState sync_get_slave_state(clientCB *pClient);
 
-int sync_set_client_state(clientInfo *pClient, syncState state);
+int sync_set_client_state(clientCB *pClient, syncState state);
 
-int sync_save_client_cmd(clientInfo *pClient, clientCmdType cmd, std::string& msg);
+int sync_save_client_cmd(clientCB *pClient, clientCmdType cmd, std::string& msg);
 
-int sync_clear_client_cmd(clientInfo *pClient);
+int sync_clear_client_cmd(clientCB *pClient);
 
-clientInfo *sync_find_waiting_commit_user_client();
+clientCB *sync_find_waiting_commit_user_client();
 
-clientInfo *sync_find_waiting_save_user_client();
+clientCB *sync_find_waiting_save_user_client();
 
-clientInfo *sync_find_waiting_commit_slave_client();
-
-
+clientCB *sync_find_waiting_commit_slave_client();
 
 
 
 
-typedef struct _syncServerInfo
+
+
+typedef struct _syncServerCB
 {
     int fd;
     std::string hostname;
@@ -78,9 +78,9 @@ typedef struct _syncServerInfo
     syncState state;
     syncState masterState;
 
-    LIST_ENTRY(_syncServerInfo) p;
+    LIST_ENTRY(_syncServerCB) p;
 
-}syncServerInfo;
+}syncServerCB;
 
 
 
@@ -89,23 +89,23 @@ int create_sync_server_list();
 void destroy_sync_server_list();
 
 
-int sync_server_list_add(syncServerInfo *psyncServerInfo);
+int sync_server_list_add(syncServerCB *psyncServerInfo);
 
-int sync_server_list_del(syncServerInfo *psyncServerInfo);
+int sync_server_list_del(syncServerCB *psyncServerInfo);
 
 int sync_server_list_clear();
 
 bool sync_server_list_empty();
 
-syncServerInfo *sync_server_list_get_first();
+syncServerCB *sync_server_list_get_first();
 
-syncServerInfo *sync_server_list_get_next(syncServerInfo *pServer);
+syncServerCB *sync_server_list_get_next(syncServerCB *pServer);
 
-syncServerInfo *sync_server_list_find(int fd);
+syncServerCB *sync_server_list_find(int fd);
 
-int sync_server_list_set_fd(syncServerInfo *pServer, int fd);
+int sync_server_list_set_fd(syncServerCB *pServer, int fd);
 
-int sync_server_list_set_state(syncServerInfo *pServer, syncState state);
+int sync_server_list_set_state(syncServerCB *pServer, syncState state);
 
 int sync_set_master_state(syncState state);
 
