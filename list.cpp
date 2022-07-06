@@ -36,8 +36,7 @@ std::string syncStateArray[SYNC_MAX] = {"NULL",
                                           "U_SAVED"};
 
 
-LIST_HEAD(clientCBHead, _clientCB) clientList
-        = LIST_HEAD_INITIALIZER(clientList);
+LIST_HEAD(clientCBHead, _clientCB) clientList = LIST_HEAD_INITIALIZER(clientList);
 
 pthread_mutex_t clientListLock;
 
@@ -153,7 +152,7 @@ int client_list_add(clientCB *pClient)
 
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "client_list_add, fd:" << pClient->fd << " IP:" << pClient->ip << " Port:" << pClient->port <<" Type:"<<pClient->type<<endl;
 
     return 0;
@@ -173,7 +172,7 @@ int client_list_del(clientCB *pClient)
 
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "client_list_del, fd:" << pClient->fd << " IP:" << pClient->ip << " Port:" << pClient->port <<" Type:"<<pClient->type<<endl;
 
     delete pClient;
@@ -206,7 +205,7 @@ void destroy_client_list()
 
     pthread_mutex_destroy(&clientListLock);
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         cout << "Client list deleted!" << endl;
 
     return;
@@ -220,7 +219,7 @@ clientCB *client_list_find(int fd)
     {
         if(np->fd == fd)
         {
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            LOG(DEBUG_LEVEL_APP)
                 cout << "client_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" Type:"<<np->type<<" name:"<<np->name<<endl;
 
             return np;
@@ -248,7 +247,7 @@ int client_list_save_name(int fd, const char *str)
     }
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
                 cout << "client_list_save_name, fd:" << fd <<" name:"<<str<<endl;
 
     return ret;
@@ -291,7 +290,7 @@ int sync_set_slave_state(clientCB *pClient, syncState state)
 
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
                 cout << "set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
 
     switch(state)
@@ -349,7 +348,7 @@ int sync_set_client_state(clientCB *pClient, syncState state)
 
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
                 cout << "set user client state [" <<syncStateArray[state] <<"]" <<endl;
 
     return 1;
@@ -382,7 +381,7 @@ int sync_save_client_cmd(clientCB *pClient, clientCmdType cmd, std::string& msg)
 
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
                 cout << "save sync client cmd:" <<cmd<<" msg:" << msg <<endl;
 
     return 1;
@@ -405,7 +404,7 @@ int sync_clear_client_cmd(clientCB *pClient)
 
     pthread_mutex_unlock(&clientListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
                 cout << "clear sync client cmd" <<endl;
 
     return 1;
@@ -476,8 +475,7 @@ clientCB * sync_find_waiting_commit_slave_client()
 
 
 
-LIST_HEAD(syncServerCBHead, _syncServerCB) syncServerList
-        = LIST_HEAD_INITIALIZER(syncServerList);
+LIST_HEAD(syncServerCBHead, _syncServerCB) syncServerList = LIST_HEAD_INITIALIZER(syncServerList);
 
 
 pthread_mutex_t syncServerListLock;
@@ -523,7 +521,7 @@ int sync_server_list_add(syncServerCB *psyncServer)
     pthread_mutex_unlock(&syncServerListLock);
 
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "sync_server_list_add, fd:" << psyncServer->fd << " IP:" << psyncServer->ip << " Port:" << psyncServer->port <<endl;
 
     return 0;
@@ -543,7 +541,7 @@ int sync_server_list_del(syncServerCB *psyncServer)
 
     pthread_mutex_unlock(&syncServerListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "sync_server_list_del, fd:" << psyncServer->fd << " IP:" << psyncServer->ip << " Port:" << psyncServer->port <<endl;
 
     delete psyncServer;
@@ -576,7 +574,7 @@ void destroy_sync_server_list()
 
     pthread_mutex_destroy(&syncServerListLock);
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "Sync server list deleted!" << endl;
 
     return;
@@ -591,7 +589,7 @@ syncServerCB *sync_server_list_find(int fd)
     {
         if(np->fd == fd)
         {
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            LOG(DEBUG_LEVEL_APP)
                 cout << "sync_server_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->hostname<<endl;
 
             return np;
@@ -630,7 +628,7 @@ int sync_server_list_set_state(syncServerCB *pServer, syncState state)
 
     pthread_mutex_unlock(&syncServerListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
                 cout << "set sync server list master state [" <<syncStateArray[state] <<"]" << " Peer:" << pServer->ip << ":" << pServer->port <<endl;
 
     return 1;
@@ -649,7 +647,7 @@ int sync_server_list_set_fd(syncServerCB *pServer, int fd)
 
     pthread_mutex_unlock(&syncServerListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
                 cout << "sync_server_set_fd [" <<fd<<"] IP:" << pServer->ip << " Port:" << pServer->port <<endl;
 
     return 1;
@@ -679,7 +677,7 @@ int sync_set_master_state(syncState state)
 
     pthread_mutex_unlock(&syncServerListLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
                 cout << "set sync master state [" <<syncStateArray[state] <<"]" <<endl;
 
     //timer

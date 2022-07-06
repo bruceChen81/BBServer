@@ -21,12 +21,12 @@ int readerCnt = 0;
 
 void write_start()
 {
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: write trying!" << std::endl;
 
     sem_wait(&wrt);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: write begin!" << std::endl;
 
     return;
@@ -39,7 +39,7 @@ void write_end()
 
     sem_post(&wrt);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: write end!" << std::endl;
 
     return;
@@ -49,7 +49,7 @@ void write_end()
 
 void read_start()
 {
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: read trying!" << std::endl;
 
     pthread_mutex_lock(&readerMutex);
@@ -63,7 +63,7 @@ void read_start()
 
     pthread_mutex_unlock(&readerMutex);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: read begin! set reader count["<<readerCnt<<"]" << std::endl;
 
 
@@ -88,7 +88,7 @@ void read_end()
 
     pthread_mutex_unlock(&readerMutex);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: read end!   set reader count["<<readerCnt<<"]" << std::endl;
 
     return;
@@ -111,7 +111,7 @@ int destroy_bbfile_access_semahpores()
 {
     pthread_mutex_destroy(&readerMutex);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         std::cout << "BBfile access mutex deleted!" << std::endl;
 
     return 0;
@@ -120,7 +120,7 @@ int destroy_bbfile_access_semahpores()
 
 void bbfile_debug_wait(int time)
 {
-    if(CONFIG.debug)
+    if(SysCfgCB.debug)
     {
         sleep(time);
     }

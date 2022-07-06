@@ -63,7 +63,7 @@ int start_conn_service()
     conn_init();
 
     //create server listening socket
-    server_fd = create_tcp_server_sock(CONFIG.bbPort);
+    server_fd = create_tcp_server_sock(SysCfgCB.bbPort);
 
     CHECK_EXIT(server_fd);
 
@@ -71,14 +71,14 @@ int start_conn_service()
 
     //create sync server listening socket
     //start_sync_server();
-    sync_server_fd = create_tcp_server_sock(CONFIG.syncPort);
+    sync_server_fd = create_tcp_server_sock(SysCfgCB.syncPort);
 
     CHECK_EXIT(sync_server_fd);
 
     conn_add(sync_server_fd);
 
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_NONE)
+    LOG(DEBUG_LEVEL_NONE)
     {
         cout << "Sync server socket created, listening ......" << endl;
         cout << "Bulletin Board Server startup complete, waiting for client --------->" << endl<<endl;
@@ -252,7 +252,7 @@ void conn_add(int fd)
 
     FD_SET(fd, &read_fd_set);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
+    LOG(DEBUG_LEVEL_CONN)
         cout << "connection add fd:" <<fd<<endl;
 
     return;
@@ -285,7 +285,7 @@ void conn_del(int fd)
 
     pthread_mutex_unlock(&clientConnLock);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_CONN)
+    LOG(DEBUG_LEVEL_CONN)
         cout << "connection del fd:" <<fd<<endl;
 
     return;
@@ -319,7 +319,7 @@ void destroy_connection()
 
     pthread_mutex_destroy(&clientConnLock);
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         cout << "All server and client connections closed!" << endl;
 
     return;

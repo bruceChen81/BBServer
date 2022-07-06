@@ -35,7 +35,7 @@ int process_sync_master_msg(clientCB *pClient, char *buf, int length, string& re
     }
 
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "process_sync_master_msg: "<< msg << endl;
 
     //5.0 PRECOMMIT ACK
@@ -145,7 +145,7 @@ int process_sync_slave_msg(clientCB *pClient, char *buf, int length, string& res
         msg += string(buf,length);
     }
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "process_sync_slave_msg: "<< msg << endl;
 
     //PRECOMMIT, ABORT, COMMIT WRITE/READ message, END SUCCESS, END UNSUCCESS
@@ -177,7 +177,7 @@ int process_sync_slave_msg(clientCB *pClient, char *buf, int length, string& res
     {
         if(SYNC_S_PRECOMMIT_ACK != pClient->slaveState)
         {
-            if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            LOG(DEBUG_LEVEL_D)
             {
                 cout << "sync slave recv msg at wrong state";
                 print_sync_state(pClient->slaveState);
@@ -211,7 +211,7 @@ int process_sync_slave_msg(clientCB *pClient, char *buf, int length, string& res
     {
         if(SYNC_S_PRECOMMIT_ACK != pClient->slaveState)
         {
-            if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            LOG(DEBUG_LEVEL_D)
             {
                 cout << "sync slave recv msg at wrong state";
                 print_sync_state(pClient->slaveState);
@@ -286,7 +286,7 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
 
     string msg = string(buf,length);
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    if (SysCfgCB.debugLevel >= DEBUG_LEVEL_APP)
         cout << "process_client_msg: "<< msg << endl;
 
     //COMMANDS: USER, READ, WRITE, REPLACE, QUIT
@@ -331,7 +331,7 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
         return 0;
     }
 
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
     {
         cout << "arg1:" << arg1 << " len:" << arg1.size();
         cout << "   arg2:" << arg2 << " len:" << arg2.size()<<endl;
@@ -367,7 +367,7 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
 
         read_start();
 
-        myFile.open(CONFIG.bbFile, std::ios::in);//read
+        myFile.open(SysCfgCB.bbFile, std::ios::in);//read
         if(myFile.is_open())
         {
             while(getline(myFile, line))
@@ -408,7 +408,8 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
         //3.2 ERROR WRITE text
 
         msgSave.clear();
-        get_new_msg_number(strNumber);
+        //get_new_msg_number(strNumber);
+        strNumber = alloc_new_msg_number();
         msgSave += strNumber;
         msgSave += "/";
 
@@ -424,7 +425,7 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
         msgSave += "/";
         msgSave += arg2;
 
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        LOG(DEBUG_LEVEL_APP)
             cout <<"write msg:"<< msgSave << endl;
 
         //check sync peers, if configured, first invoke sync
@@ -538,7 +539,7 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
 //return 0:success; -1: write file error
 int save_msg_write(string& msgSave)
 {
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    if (SysCfgCB.debugLevel >= DEBUG_LEVEL_D)
         cout << "SAVE MSG WRITE:"<< msgSave <<endl;
 
     fstream myFile;
@@ -547,7 +548,7 @@ int save_msg_write(string& msgSave)
 
     write_start();
 
-    myFile.open(CONFIG.bbFile, std::ios::app);//write, append
+    myFile.open(SysCfgCB.bbFile, std::ios::app);//write, append
 
     if(myFile.is_open())
     {
@@ -569,7 +570,7 @@ int save_msg_write(string& msgSave)
 //return 0:success; -1:message-number no found; -2:write file error
 int save_msg_replace(string& msg)
 {
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
         cout << "SAVE MSG REPLACE:"<<msg <<endl;
 
     string line, newLine, numberInput, numberSaved;
@@ -584,7 +585,7 @@ int save_msg_replace(string& msg)
 
     write_start();
 
-    myFile.open(CONFIG.bbFile, std::ios::in|std::ios::out);//read and write
+    myFile.open(SysCfgCB.bbFile, std::ios::in|std::ios::out);//read and write
     if(myFile.is_open())
     {
         while(getline(myFile, line))
@@ -608,7 +609,7 @@ int save_msg_replace(string& msg)
 
                 ret = 0;
 
-                if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+                if(SysCfgCB.debugLevel >= DEBUG_LEVEL_APP)
                     cout << "replace msg saved successfully!" << endl;
 
                 break;

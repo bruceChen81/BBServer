@@ -20,7 +20,7 @@ int init_sync_server_list()
     std::size_t pos, pos1, pos2;
     bool keepsearching = true;
 
-    string peers = string(CONFIG.peers);
+    string peers = string(SysCfgCB.peers);
 
     if(peers.empty())
     {
@@ -60,7 +60,7 @@ int init_sync_server_list()
                 keepsearching = false;
             }
 
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+            LOG(DEBUG_LEVEL_APP)
                 cout << "init_sync_server_list find server:" << server <<":"<<serverport<< endl;
 
             //add to server list
@@ -106,7 +106,7 @@ int init_sync_server_connection()
 
     if(sync_server_list_empty())
     {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        LOG(DEBUG_LEVEL_APP)
                 cout << "sync server list is empty"<<endl;
 
         return -1;
@@ -161,7 +161,7 @@ int sync_send_precommit()
         {
             sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
 
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else
@@ -197,7 +197,7 @@ int sync_send_abort()
         {
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else
@@ -251,7 +251,7 @@ int sync_send_commit(clientCmdType type, string& msgbody)
         {
             sync_server_list_set_state(pServer, SYNC_M_COMMITED);
 
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
 
         }
@@ -300,7 +300,7 @@ int sync_send_success(bool isSuccessful, string& msgNumber)
         {
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
-            if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+            LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else
@@ -339,12 +339,12 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     if(ret == 0)
     {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        LOG(DEBUG_LEVEL_D)
             cout << "connected to sync server:" <<ip<<":"<<port<<endl;
     }
     else
     {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        LOG(DEBUG_LEVEL_D)
             cout << "failed to connect to sync server:" <<ip<<":"<<port<<endl;
 
         return -1;
@@ -390,7 +390,7 @@ bool sync_check_server_state(syncState state)
 
 bool sync_check_service_enable()
 {
-    return CONFIG.syncEnalbe;
+    return SysCfgCB.syncEnalbe;
 }
 
 
@@ -428,7 +428,7 @@ void handle_master_timeout(int sig)
 
     //signal(sig, SIG_INT);
     //signal(SIG_INT, handler);
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout <<"sync master state timeout!"<<endl;
 
     //stop_timer_master();
@@ -443,7 +443,7 @@ void handle_slave_timeout(int sig)
 
     //signal(sig, SIG_INT);
     //signal(SIG_INT, handler);
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout <<"sync slave state timeout!"<<endl;
 
     //stop_timer_slave();
@@ -555,7 +555,7 @@ int start_timer_master(int sec)
 
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "start sync master state timer:" <<sec<<"S"<<endl;
 
     return 0;
@@ -572,7 +572,7 @@ int start_timer_slave(int sec)
 
     CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "start sync slave state timer:" <<sec<<"S"<<endl;
 
     return 0;
@@ -589,7 +589,7 @@ int stop_timer_master()
 
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "stop sync master state timer" << endl;
 
     return 0;
@@ -606,7 +606,7 @@ int stop_timer_slave()
 
     CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "stop sync slave state timer" << endl;
 
     return 0;
@@ -616,7 +616,7 @@ int delete_timer_master()
 {
     timer_delete(timerid_master);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "Sync master state timer deleted!" << endl;
 
     return 0;
@@ -626,7 +626,7 @@ int delete_timer_slave()
 {
     timer_delete(timerid_slave);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "Sync slave state timer deleted!" << endl;
 
     return 0;

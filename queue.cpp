@@ -13,8 +13,7 @@ CS590 Master Project(BBServer) @ Bishop's University
 #include "config.h"
 
 //client event queue
-STAILQ_HEAD(clientEvCBHead, _clientEventCB) clientEvQueue
-        = STAILQ_HEAD_INITIALIZER(clientEvQueue);
+STAILQ_HEAD(clientEvCBHead, _clientEventCB) clientEvQueue = STAILQ_HEAD_INITIALIZER(clientEvQueue);
 
 pthread_mutex_t clientEvQueueLock;
 
@@ -42,7 +41,7 @@ void destroy_client_event_queue()
 
     pthread_mutex_destroy(&clientEvQueueLock);
 
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             std::cout << "Client event queue deleted!" << std::endl;
 
     return;
@@ -51,7 +50,7 @@ void destroy_client_event_queue()
 
 void enClientEventQueue(clientEventCB *pClientEv)
 {
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_QUEUE)
+    LOG(DEBUG_LEVEL_QUEUE)
         std::cout << "enClientEvQueue type:" << pClientEv->event << " fd:" << pClientEv->fd << std::endl;
 
     pthread_mutex_lock(&clientEvQueueLock);
@@ -83,7 +82,7 @@ clientEventCB *deClientEventQueue()
 
         STAILQ_REMOVE_HEAD(&clientEvQueue,p);
 
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_QUEUE)
+        LOG(DEBUG_LEVEL_QUEUE)
             std::cout << "deClientEvQueue type:" << p->event << " fd:" << p->fd << std::endl;
     }
 

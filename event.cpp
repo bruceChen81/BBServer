@@ -83,41 +83,6 @@ void *handle_client_event(void *arg)
 
         }
 
-/*
-        if(pClientEv->event == EV_ACCEPT)
-        {
-            proc_client_ev_accept(pClientEv);
-        }
-        else if(pClientEv->event == EV_RECV)
-        {
-            proc_client_ev_recv(pClientEv);
-        }
-        else if(pClientEv->event == EV_SYNC_PRECOMMIT_ACK)
-        {
-            proc_sync_ev_precommit_ack(pClientEv);
-        }
-        else if(pClientEv->event == EV_SYNC_PRECOMMIT_ERR)
-        {
-            proc_sync_ev_precommit_err(pClientEv);
-        }
-        else if(pClientEv->event == EV_SYNC_COMMIT_SUCCESS)
-        {
-            proc_sync_ev_commit_success(pClientEv);
-        }
-        else if(pClientEv->event == EV_SYNC_COMMIT_UNSUCCESS)
-        {
-            proc_sync_ev_commit_unsuccess(pClientEv);
-        }
-        else if(pClientEv->event == EV_SYNC_TIMEOUT_MASTER)
-        {
-            proc_sync_ev_master_timeout(pClientEv);
-        }
-        else if(pClientEv->event == EV_SYNC_TIMEOUT_SLAVE)
-        {
-            proc_sync_ev_slave_timeout(pClientEv);
-        }
-*/
-
         delete pClientEv;
     }
 
@@ -134,7 +99,7 @@ int send_response_to_client(clientCB* pClient, std::string& response)
     bytesSend = send(pClient->fd, response.c_str(), response.size(), 0);
     CHECK(bytesSend);
 
-    if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
             cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
 
     return 0;
@@ -151,7 +116,7 @@ int proc_client_ev_accept(clientEventCB *pClientEv)
 
     if(new_fd >= 0)
     {
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        LOG(DEBUG_LEVEL_D)
             cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
 
         //add new fd to fd set
@@ -204,7 +169,7 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
 
     if(!pClient)
     {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_APP)
+        if(SysCfgCB.debugLevel >= DEBUG_LEVEL_APP)
             cout << "client has been deleted! fd:" << pClientEv->fd << endl;
 
         return -1;
@@ -219,7 +184,7 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
 
         conn_del(pClient->fd);
 
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        if(SysCfgCB.debugLevel >= DEBUG_LEVEL_D)
             cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
 
         if(pClient->type == CLIENT_SYNC_MASTER)
@@ -233,7 +198,7 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
     }
     else if (bytesRecved > 0)
     {
-        if(CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        LOG(DEBUG_LEVEL_D)
         {
             cout << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"
                  << string(buf, 0, bytesRecved)<< endl;

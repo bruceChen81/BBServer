@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
@@ -64,6 +65,7 @@ typedef enum clientEvType
 
 }clientEvType;
 
+#define LOG(X) if(SysCfgCB.debugLevel >= X)
 
 #define CHECK_EXIT(X) ({int __val = (X); (__val == -1 ? ({fprintf(stderr, "ERROR ("__FILE__":%d) -- %s\n", __LINE__, strerror(errno)); exit(-1);-1;}) : __val);})
 

@@ -12,17 +12,51 @@ CS590 Master Project(BBServer) @ Bishop's University
 #include "config.h"
 
 
-sysCfg CONFIG;
+sysCfg SysCfgCB;
+
+
+void log(DbgLevel dbgL)
+{
+    return;
+
+}
+
+
+int getParaFromBuf(char *buf, char *para, char *keyword)
+{
+    char *p1 = nullptr, *p2 = nullptr;
+
+    p1 = strstr(buf,keyword);
+
+    if(!p1)
+    {
+        return ERR;
+    }
+
+    p2 = strstr(p1,"\n");
+
+    if(!p2)
+    {
+        return ERR;
+    }
+
+    int offset = strlen(keyword);
+
+    memcpy(para, p1+offset, p2-(p1+offset));
+
+
+    return SUCCESS;
+}
 
 int print_config()
 {
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+    LOG(DEBUG_LEVEL_D)
     {
-        cout << "THMAX: " << CONFIG.thMax << endl << "BBPORT: " << CONFIG.bbPort << endl << "SYNCPORT: " << CONFIG.syncPort << endl;
-        cout << "BBFILE: " << CONFIG.bbFile << endl << "PEERS: " << CONFIG.peers << endl;
-        cout << "DAEMON: " << CONFIG.daemon << endl << "DEBUG: " << CONFIG.debug << endl;
-        cout << "CFGFILE: " << CONFIG.cfgFile << endl <<"SYNC: "<<CONFIG.syncEnalbe<<endl;
-        cout << "DBGLEVEL: " << CONFIG.debugLevel << endl<<endl;
+        cout << "THMAX: " << SysCfgCB.thMax << endl << "BBPORT: " << SysCfgCB.bbPort << endl << "SYNCPORT: " << SysCfgCB.syncPort << endl;
+        cout << "BBFILE: " << SysCfgCB.bbFile << endl << "PEERS: " << SysCfgCB.peers << endl;
+        cout << "DAEMON: " << SysCfgCB.daemon << endl << "DEBUG: " << SysCfgCB.debug << endl;
+        cout << "CFGFILE: " << SysCfgCB.cfgFile << endl <<"SYNC: "<<SysCfgCB.syncEnalbe<<endl;
+        cout << "DBGLEVEL: " << SysCfgCB.debugLevel << endl<<endl;
     }
 
     return 0;
@@ -44,25 +78,25 @@ int load_config(const char *pCfgFile)
     }
 
     memset(buf, 0, sizeof(buf));
-    memset((void *) &CONFIG, 0, sizeof(CONFIG));
+    memset((void *) &SysCfgCB, 0, sizeof(SysCfgCB));
 
     //set default value
-    CONFIG.thMax = 20;
-    CONFIG.bbPort = 9000;
-    CONFIG.syncPort = 10000;
-    strcpy(CONFIG.bbFile, "");
-    strcpy(CONFIG.peers, "");
-    CONFIG.daemon = true;
-    CONFIG.debug = false;
-    strcpy(CONFIG.cfgFile, pCfgFile);
-    CONFIG.syncEnalbe = false;
-    CONFIG.debugLevel = DEBUG_LEVEL_NONE;
-    //CONFIG.maxConnections = CONFIG.thMax;
+    SysCfgCB.thMax = 20;
+    SysCfgCB.bbPort = 9000;
+    SysCfgCB.syncPort = 10000;
+    strcpy(SysCfgCB.bbFile, "");
+    strcpy(SysCfgCB.peers, "");
+    SysCfgCB.daemon = true;
+    SysCfgCB.debug = false;
+    strcpy(SysCfgCB.cfgFile, pCfgFile);
+    SysCfgCB.syncEnalbe = false;
+    SysCfgCB.debugLevel = DEBUG_LEVEL_NONE;
+    //SysCfgCB.maxConnections = SysCfgCB.thMax;
 
 
     //fd = open("bbserv.conf", O_RDONLY);
 
-    fd = open(CONFIG.cfgFile, O_RDONLY);
+    fd = open(SysCfgCB.cfgFile, O_RDONLY);
 
     CHECK(fd);
 
@@ -81,7 +115,7 @@ int load_config(const char *pCfgFile)
 
         if(0<tmax && tmax<MAX_THREAD_POOL)
         {
-            CONFIG.thMax = tmax;
+            SysCfgCB.thMax = tmax;
         }
     }
 
@@ -94,7 +128,7 @@ int load_config(const char *pCfgFile)
 
         if(0<bp && bp<65535)
         {
-            CONFIG.bbPort = bp;
+            SysCfgCB.bbPort = bp;
         }
     }
 
@@ -107,7 +141,7 @@ int load_config(const char *pCfgFile)
 
         if(0<sp && sp<65535)
         {
-            CONFIG.syncPort = sp;
+            SysCfgCB.syncPort = sp;
         }
     }
 
@@ -116,7 +150,7 @@ int load_config(const char *pCfgFile)
 
     if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBFILE="))
     {
-        strcpy(CONFIG.bbFile, arg);
+        strcpy(SysCfgCB.bbFile, arg);
     }
 
     //PEERS
@@ -124,8 +158,8 @@ int load_config(const char *pCfgFile)
 
     if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"PEERS="))
     {
-        strcpy(CONFIG.peers, arg);
-        CONFIG.syncEnalbe = true;
+        strcpy(SysCfgCB.peers, arg);
+        SysCfgCB.syncEnalbe = true;
     }
 
     //DAEMON
@@ -135,11 +169,11 @@ int load_config(const char *pCfgFile)
     {
         if(!strcmp(arg,"false") || !strcmp(arg, "0"))
         {
-            CONFIG.daemon = false;
+            SysCfgCB.daemon = false;
         }
         else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
         {
-            CONFIG.daemon = true;
+            SysCfgCB.daemon = true;
         }
     }
 
@@ -150,13 +184,13 @@ int load_config(const char *pCfgFile)
     {
         if(!strcmp(arg,"false") || !strcmp(arg, "0"))
         {
-            CONFIG.debug = false;
-            CONFIG.debugLevel = DEBUG_LEVEL_NONE;
+            SysCfgCB.debug = false;
+            SysCfgCB.debugLevel = DEBUG_LEVEL_NONE;
         }
         else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
         {
-            CONFIG.debug = true;
-            CONFIG.debugLevel = DEBUG_LEVEL_D;
+            SysCfgCB.debug = true;
+            SysCfgCB.debugLevel = DEBUG_LEVEL_D;
         }
     }
 
@@ -270,52 +304,52 @@ int load_option(int argc, char **argv)
 
     if(bflag)
     {
-        strcpy(CONFIG.bbFile, optionCFG.bbFile);
+        strcpy(SysCfgCB.bbFile, optionCFG.bbFile);
     }
 
     if(tflag)
     {
-        CONFIG.thMax = optionCFG.thMax;
+        SysCfgCB.thMax = optionCFG.thMax;
     }
 
     if(pflag)
     {
-        CONFIG.bbPort = optionCFG.bbPort;
+        SysCfgCB.bbPort = optionCFG.bbPort;
     }
 
     if(sflag)
     {
-        CONFIG.syncPort = optionCFG.syncPort;
+        SysCfgCB.syncPort = optionCFG.syncPort;
     }
 
     if(fflag)
     {
-        CONFIG.daemon = optionCFG.daemon;
+        SysCfgCB.daemon = optionCFG.daemon;
     }
 
     if(dflag)
     {
-        CONFIG.debug = optionCFG.debug;
+        SysCfgCB.debug = optionCFG.debug;
 
-        if(CONFIG.debugLevel < DEBUG_LEVEL_D)
+        if(SysCfgCB.debugLevel < DEBUG_LEVEL_D)
         {
-            CONFIG.debugLevel = DEBUG_LEVEL_D;
+            SysCfgCB.debugLevel = DEBUG_LEVEL_D;
         }
     }
 
     if(Dflag)
     {
-        CONFIG.debugLevel = optionCFG.debugLevel;
+        SysCfgCB.debugLevel = optionCFG.debugLevel;
     }
 
     if(peerflag)
     {
-        strcpy(CONFIG.peers, optionCFG.peers);
+        strcpy(SysCfgCB.peers, optionCFG.peers);
     }
 
     if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag)
     {
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_D)
+        LOG(DEBUG_LEVEL_D)
             cout << "Load config option command line success!" << endl;
 
         print_config();
@@ -325,150 +359,47 @@ int load_option(int argc, char **argv)
     return 0;
 }
 
-int getParaFromBuf(char *buf, char *para, char *keyword)
-{
-    char *p1 = nullptr, *p2 = nullptr;
 
-    p1 = strstr(buf,keyword);
-
-    if(!p1)
-    {
-        return ERR;
-    }
-
-    p2 = strstr(p1,"\n");
-
-    if(!p2)
-    {
-        return ERR;
-    }
-
-    int offset = strlen(keyword);
-
-    memcpy(para, p1+offset, p2-(p1+offset));
-
-
-    return SUCCESS;
-}
 
 
 //message number
 
-int msgNumber = 0;
-
-pthread_mutex_t clientMsgNoLock;
-
-
-int get_last_line(string& lastline)
+//millisecond
+string get_time_ms()
 {
-    //string filename = "bbfile";
-    fstream myFile;
+    //auto t = std::time(nullptr);
+    //auto tm = *std::localtime(&t);
+    //cout << std::put_time(&tm, "%Y%m%d%H%M%S");
 
-    myFile.open(CONFIG.bbFile, ios::in);//read
-    if(myFile.is_open())
+    time_t t = time(nullptr);
+    std::string datetime(32,0);
+    //datetime.resize(std::strftime(&datetime[0], datetime.size(), "%a %d %b %Y - %I:%M:%S%p", std::localtime(&t)));
+    datetime.resize(strftime(&datetime[0], datetime.size(), "%Y%m%d%H%M%S", localtime(&t)));
+   
+    struct timeval tt;
+    gettimeofday(&tt, NULL); 
+    int ms = tt.tv_usec/1000;  
+    
+    if(ms < 10)
     {
-        myFile.seekg(-2, std::ios::end);
-
-        bool keeplooping = true;
-
-        while(keeplooping)
-        {
-            char ch;
-            myFile.get(ch);
-
-            if((int)myFile.tellg()<=1)
-            {
-                myFile.seekg(0);
-                keeplooping = false;
-            }
-            else if(ch == '\n')
-            {
-                keeplooping = false;
-            }
-            else
-            {
-                myFile.seekg(-2, std::ios_base::cur);
-            }
-        }
-
-        //string lastline;
-        getline(myFile, lastline);
-
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout<<"bbfile get_last_line:"<<lastline<<endl;
-
-        myFile.close();
+        datetime += "00";
+    }
+    else if(ms < 100)
+    {
+        datetime += "0";
     }
 
-    return 0;
+    datetime += std::to_string(ms);   
+
+    return datetime;
 }
 
-
-int get_new_msg_number(std::string& strNumber)
+string alloc_new_msg_number()
 {
-    int number;
+    string strNumber = get_time_ms();
 
-    pthread_mutex_lock(&clientMsgNoLock);
+    if (SysCfgCB.debugLevel >= DEBUG_LEVEL_APP)
+        cout << "alloc new msg number:" << strNumber <<endl;
 
-    msgNumber++;
-
-    if(msgNumber == INT_MAX)
-    {
-        msgNumber = 1;
-    }
-
-    number = msgNumber;
-
-    pthread_mutex_unlock(&clientMsgNoLock);
-
-    strNumber += std::to_string(number);
-
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "get new msg number:" << strNumber <<endl;
-
-    return 0;
+    return strNumber;
 }
-
-
-int load_msg_number()
-{
-    string lastline;
-    string msgNumLast;
-
-    pthread_mutex_init(&clientMsgNoLock, NULL);
-
-    get_last_line(lastline);
-
-    msgNumLast = lastline.substr(0, lastline.find("/"));
-
-    if(msgNumLast.empty())
-    {
-        if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-            cout << "can not read last message number!" << endl;
-
-        return -1;
-    }
-
-    msgNumber = stoi(msgNumLast);
-
-    if (CONFIG.debugLevel >= DEBUG_LEVEL_APP)
-        cout << "load message number:" << msgNumber << endl;
-
-    return 0;
-}
-
-int get_time()
-{
-    time_t now = time(0);
-
-    tm *ltime = localtime(&now);
-
-    cout << 1900 + ltime->tm_year << endl;
-    cout << 1 + ltime->tm_mon << endl;
-    cout << ltime->tm_mday << endl;
-    cout << ltime->tm_hour << ":" << ltime->tm_min << ":" << ltime->tm_sec<<endl;
-
-    return 0;
-}
-
-

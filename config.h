@@ -37,7 +37,7 @@ typedef struct sysCfg
 
 
 
-extern sysCfg CONFIG;
+extern sysCfg SysCfgCB;
 
 int print_config();
 
@@ -45,13 +45,7 @@ int load_config(const char *pCfgFile);
 
 int load_option(int argc, char **argv);
 
-int load_msg_number();
-
-int getParaFromBuf(char *buf, char *arg, char *keyword);
-
-int get_last_line(std::string& lastline);
-
-
+std::string alloc_new_msg_number();
 
 
 #endif // CONFIG_H_INCLUDED
