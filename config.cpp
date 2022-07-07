@@ -11,51 +11,41 @@ CS590 Master Project(BBServer) @ Bishop's University
 #include "common.h"
 #include "config.h"
 
-
+//global config CB
 sysCfg SysCfgCB;
 
-
-void log(DbgLevel dbgL)
-{
-    return;
-
-}
-
-
-int getParaFromBuf(char *buf, char *para, char *keyword)
-{
+int getParaFromBuf(char *buf, char *para, char *keyword){
     char *p1 = nullptr, *p2 = nullptr;
-
     p1 = strstr(buf,keyword);
 
-    if(!p1)
-    {
+    if(!p1){
         return ERR;
     }
 
     p2 = strstr(p1,"\n");
 
-    if(!p2)
-    {
+    if(!p2){
         return ERR;
     }
 
     int offset = strlen(keyword);
-
     memcpy(para, p1+offset, p2-(p1+offset));
-
 
     return SUCCESS;
 }
 
 int print_config()
 {
-    LOG(DEBUG_LEVEL_D)
-    {
-        cout << "THMAX: " << SysCfgCB.thMax << endl << "BBPORT: " << SysCfgCB.bbPort << endl << "SYNCPORT: " << SysCfgCB.syncPort << endl;
-        cout << "BBFILE: " << SysCfgCB.bbFile << endl << "PEERS: " << SysCfgCB.peers << endl;
-        cout << "DAEMON: " << SysCfgCB.daemon << endl << "DEBUG: " << SysCfgCB.debug << endl;
-        cout << "CFGFILE: " << SysCfgCB.cfgFile << endl <<"SYNC: "<<SysCfgCB.syncEnalbe<<endl;
+    LOG(DEBUG_LEVEL_D){
+        cout << "THMAX: " << SysCfgCB.thMax << endl;
+        cout << "BBPORT: " << SysCfgCB.bbPort << endl;
+        cout << "SYNCPORT: " << SysCfgCB.syncPort << endl;
+        cout << "BBFILE: " << SysCfgCB.bbFile << endl;
+        cout << "PEERS: " << SysCfgCB.peers << endl;
+        cout << "DAEMON: " << SysCfgCB.daemon << endl;
+        cout << "DEBUG: " << SysCfgCB.debug << endl;
+        cout << "CFGFILE: " << SysCfgCB.cfgFile << endl;
+        cout << "SYNC: "<<SysCfgCB.syncEnalbe<<endl;
         cout << "DBGLEVEL: " << SysCfgCB.debugLevel << endl<<endl;
     }
 
@@ -66,14 +56,12 @@ int load_config(const char *pCfgFile)
 {
     int fd;
     unsigned int tmax, bp, sp;
-
     ssize_t bytesRead;
 
     char buf[256];
     char arg[128];
 
-    if(!pCfgFile)
-    {
+    if(!pCfgFile){
         return -1;
     }
 
@@ -91,104 +79,75 @@ int load_config(const char *pCfgFile)
     strcpy(SysCfgCB.cfgFile, pCfgFile);
     SysCfgCB.syncEnalbe = false;
     SysCfgCB.debugLevel = DEBUG_LEVEL_NONE;
-    //SysCfgCB.maxConnections = SysCfgCB.thMax;
-
-
-    //fd = open("bbserv.conf", O_RDONLY);
+    //SysCfgCB.maxConnections = SysCfgCB.thMax;   
 
     fd = open(SysCfgCB.cfgFile, O_RDONLY);
-
     CHECK(fd);
 
     bytesRead = read(fd, buf, sizeof(buf));
-
     CHECK(bytesRead);
 
     close(fd);
 
     //THMAX
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"THMAX="))
-    {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"THMAX=")){
         tmax = atoi(arg);
-
-        if(0<tmax && tmax<MAX_THREAD_POOL)
-        {
+        if(0<tmax && tmax<MAX_THREAD_POOL){
             SysCfgCB.thMax = tmax;
         }
     }
 
     //BBPORT
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBPORT="))
-    {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBPORT=")){
         bp = atoi(arg);
-
-        if(0<bp && bp<65535)
-        {
+        if(0<bp && bp<65535){
             SysCfgCB.bbPort = bp;
         }
     }
 
     //SYNCPORT
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"SYNCPORT="))
-    {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"SYNCPORT=")){
         sp = atoi(arg);
-
-        if(0<sp && sp<65535)
-        {
+        if(0<sp && sp<65535){
             SysCfgCB.syncPort = sp;
         }
     }
 
     //BBFILE --- mandatory
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBFILE="))
-    {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"BBFILE=")){
         strcpy(SysCfgCB.bbFile, arg);
     }
 
     //PEERS
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"PEERS="))
-    {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"PEERS=")){
         strcpy(SysCfgCB.peers, arg);
         SysCfgCB.syncEnalbe = true;
     }
 
     //DAEMON
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DAEMON="))
-    {
-        if(!strcmp(arg,"false") || !strcmp(arg, "0"))
-        {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DAEMON=")){
+        if(!strcmp(arg,"false") || !strcmp(arg, "0")){
             SysCfgCB.daemon = false;
         }
-        else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
-        {
+        else if(!strcmp(arg,"true") || !strcmp(arg, "1")){
             SysCfgCB.daemon = true;
         }
     }
 
     //DEBUG
     memset(arg, 0, sizeof(arg));
-
-    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DEBUG="))
-    {
-        if(!strcmp(arg,"false") || !strcmp(arg, "0"))
-        {
+    if(SUCCESS == getParaFromBuf((char *)buf, (char *)arg,(char *)"DEBUG=")){
+        if(!strcmp(arg,"false") || !strcmp(arg, "0")){
             SysCfgCB.debug = false;
             SysCfgCB.debugLevel = DEBUG_LEVEL_NONE;
         }
-        else if(!strcmp(arg,"true") || !strcmp(arg, "1"))
-        {
+        else if(!strcmp(arg,"true") || !strcmp(arg, "1")){
             SysCfgCB.debug = true;
             SysCfgCB.debugLevel = DEBUG_LEVEL_D;
         }
@@ -202,20 +161,14 @@ int load_config(const char *pCfgFile)
 int load_option(int argc, char **argv)
 {
     int option;
-
     int bflag = 0, tflag = 0, pflag = 0, sflag = 0, fflag = 0, dflag = 0, cflag = 0, peerflag = 0, Dflag = 0;
     unsigned int tmax, bp, sp, dLevel;
 
     sysCfg optionCFG;
     memset((void *)&optionCFG, 0, sizeof(optionCFG));
 
-//    extern char *optarg;
-//    extern int optind, optopt;
-
-    while ((option = getopt(argc,argv, "b:c:t:T:p:s:fdD:")) != -1)
-    {
-        switch(option)
-        {
+    while ((option = getopt(argc,argv, "b:c:t:T:p:s:fdD:")) != -1){
+        switch(option){
             case 'b':
                 bflag = 1;
                 strcpy(optionCFG.bbFile,optarg);
@@ -225,8 +178,7 @@ int load_option(int argc, char **argv)
             case 't':
                 tflag = 1;
                 tmax = atoi(optarg);
-                if(0<tmax && tmax<MAX_THREAD_POOL)
-                {
+                if(0<tmax && tmax<MAX_THREAD_POOL){
                     optionCFG.thMax = tmax;
                 }
                 break;
@@ -234,8 +186,7 @@ int load_option(int argc, char **argv)
             case 'p':
                 pflag = 1;
                 bp = atoi(optarg);
-                if(0<bp && bp<65535)
-                {
+                if(0<bp && bp<65535){
                     optionCFG.bbPort = bp;
                 }
                 break;
@@ -243,8 +194,7 @@ int load_option(int argc, char **argv)
             case 's':
                 sflag = 1;
                 sp = atoi(optarg);
-                if(0<sp && sp<65535)
-                {
+                if(0<sp && sp<65535){
                     optionCFG.syncPort = sp;
                 }
                 break;
@@ -263,11 +213,9 @@ int load_option(int argc, char **argv)
             case 'D':
                 Dflag = 1;
                 dLevel = atoi(optarg);
-                if(dLevel >=0 && dLevel <= DEBUG_LEVEL_MAX)
-                {
+                if(dLevel >=0 && dLevel <= DEBUG_LEVEL_MAX){
                     optionCFG.debugLevel = dLevel;
                 }
-
                 break;
 
             case 'c':
@@ -288,73 +236,59 @@ int load_option(int argc, char **argv)
                 {
                     cout<<"Invalid option or argument!"<<endl;
                 }
-
                 break;
         }
     }
 
     //First: process cflag(config file name), reload config file
-    if(cflag)
-    {
+    if(cflag){
         //reload config file
         load_config((char *)&optionCFG.cfgFile);
     }
 
     //Second: process option argument, overwrite config file arg
 
-    if(bflag)
-    {
+    if(bflag){
         strcpy(SysCfgCB.bbFile, optionCFG.bbFile);
     }
 
-    if(tflag)
-    {
+    if(tflag){
         SysCfgCB.thMax = optionCFG.thMax;
     }
 
-    if(pflag)
-    {
+    if(pflag){
         SysCfgCB.bbPort = optionCFG.bbPort;
     }
 
-    if(sflag)
-    {
+    if(sflag){
         SysCfgCB.syncPort = optionCFG.syncPort;
     }
 
-    if(fflag)
-    {
+    if(fflag){
         SysCfgCB.daemon = optionCFG.daemon;
     }
 
-    if(dflag)
-    {
+    if(dflag){
         SysCfgCB.debug = optionCFG.debug;
-
-        if(SysCfgCB.debugLevel < DEBUG_LEVEL_D)
-        {
+        if(SysCfgCB.debugLevel < DEBUG_LEVEL_D){
             SysCfgCB.debugLevel = DEBUG_LEVEL_D;
         }
     }
 
-    if(Dflag)
-    {
+    if(Dflag){
         SysCfgCB.debugLevel = optionCFG.debugLevel;
     }
 
-    if(peerflag)
-    {
+    if(peerflag){
         strcpy(SysCfgCB.peers, optionCFG.peers);
     }
 
-    if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag)
-    {
+    if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag){
         LOG(DEBUG_LEVEL_D)
             cout << "Load config option command line success!" << endl;
 
         print_config();
     }
-
 
     return 0;
 }
@@ -380,12 +314,10 @@ string get_time_ms()
     gettimeofday(&tt, NULL); 
     int ms = tt.tv_usec/1000;  
     
-    if(ms < 10)
-    {
+    if(ms < 10){
         datetime += "00";
     }
-    else if(ms < 100)
-    {
+    else if(ms < 100){
         datetime += "0";
     }
 
@@ -398,7 +330,7 @@ string alloc_new_msg_number()
 {
     string strNumber = get_time_ms();
 
-    if (SysCfgCB.debugLevel >= DEBUG_LEVEL_APP)
+    LOG(DEBUG_LEVEL_APP)
         cout << "alloc new msg number:" << strNumber <<endl;
 
     return strNumber;

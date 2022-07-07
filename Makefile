@@ -41,4 +41,4 @@ semaphore.o: semaphore.cpp
 
 
 clean:
-	rm -f $(OBJS) bbserv core
+	rm -f $(OBJS) bbserv bbserv.log bbserv.pid

@@ -7,8 +7,6 @@ CS590 Master Project(BBServer) @ Bishop's University
 
 */
 
-
-
 #include "common.h"
 #include "config.h"
 #include "queue.h"
@@ -27,25 +25,19 @@ int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv);
 int proc_sync_ev_master_timeout(clientEventCB *pClientEv);
 int proc_sync_ev_slave_timeout(clientEventCB *pClientEv);
 
-
-
 void *handle_client_event(void *arg)
 {
     char *uargv = nullptr;
-
     clientEventCB *pClientEv = nullptr;
 
-    while(true)
-    {
+    while(true){
         pClientEv = deClientEventQueue();
 
-        if(nullptr == pClientEv)
-        {
+        if(nullptr == pClientEv){
             continue;
         }
 
-        switch(pClientEv->event)
-        {
+        switch(pClientEv->event){
             case EV_ACCEPT:
                 proc_client_ev_accept(pClientEv);
                 break;
@@ -80,7 +72,6 @@ void *handle_client_event(void *arg)
 
             default:
                 break;
-
         }
 
         delete pClientEv;
@@ -93,14 +84,13 @@ void *handle_client_event(void *arg)
 int send_response_to_client(clientCB* pClient, std::string& response)
 {
     int bytesSend;
-
     response += "\n";
 
     bytesSend = send(pClient->fd, response.c_str(), response.size(), 0);
     CHECK(bytesSend);
 
     LOG(DEBUG_LEVEL_D)
-            cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
+        cout << "Send response to "<< pClient->ip <<":" << pClient->port <<":" << response << endl;
 
     return 0;
 }
@@ -111,11 +101,9 @@ int proc_client_ev_accept(clientEventCB *pClientEv)
     socklen_t clientAddrSize = sizeof(clientAddr);
 
     int new_fd = accept(pClientEv->fd, (struct sockaddr *)&clientAddr, &clientAddrSize);
-
     CHECK(new_fd);
 
-    if(new_fd >= 0)
-    {
+    if(new_fd >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
 
@@ -131,16 +119,14 @@ int proc_client_ev_accept(clientEventCB *pClientEv)
         pClient->port = ntohs(clientAddr.sin_port);
         pClient->type = pClientEv->type;
 
-        if(pClientEv->type == CLIENT_USER)
-        {
+        if(pClientEv->type == CLIENT_USER){
             pClient->slaveState = SYNC_IDLE;
         }
 
         client_list_add(pClient);
 
         //send greeting
-        if(pClientEv->type == CLIENT_USER)
-        {
+        if(pClientEv->type == CLIENT_USER){
             CHECK(send(new_fd, MSG_GREETING,strlen(MSG_GREETING), 0));
         }
 //                else if(cliType == CLIENT_SYNC_MASTER)
@@ -148,8 +134,7 @@ int proc_client_ev_accept(clientEventCB *pClientEv)
 //                    //set state
 //                    CHECK(send(new_fd, "hello I am master",strlen("hello I am master"), 0));
 //                }
-        else if(pClientEv->type == CLIENT_SYNC_SLAVE)
-        {
+        else if(pClientEv->type == CLIENT_SYNC_SLAVE){
             //set state
             //CHECK(send(new_fd, "hello I am slave",strlen("hello I am slave"), 0));
         }
@@ -161,14 +146,11 @@ int proc_client_ev_accept(clientEventCB *pClientEv)
 int proc_client_ev_recv(clientEventCB* pClientEv)
 {
     int bytesRecved;
-
     char buf[1024];
     memset(buf, 0, sizeof(buf));
 
     clientCB *pClient = client_list_find(pClientEv->fd);
-
-    if(!pClient)
-    {
+    if(!pClient){
         if(SysCfgCB.debugLevel >= DEBUG_LEVEL_APP)
             cout << "client has been deleted! fd:" << pClientEv->fd << endl;
 
@@ -176,12 +158,10 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
     }
 
     bytesRecved = recv(pClient->fd, buf, sizeof(buf), 0);
-
     CHECK(bytesRecved);
 
     if (bytesRecved == 0) //client disconnected, delete
     {
-
         conn_del(pClient->fd);
 
         if(SysCfgCB.debugLevel >= DEBUG_LEVEL_D)
@@ -198,37 +178,30 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
     }
     else if (bytesRecved > 0)
     {
-        LOG(DEBUG_LEVEL_D)
-        {
+        LOG(DEBUG_LEVEL_D){
             cout << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"
                  << string(buf, 0, bytesRecved)<< endl;
         }
 
         string response;
-
         response.clear();
 
-        if(pClient->type == CLIENT_USER)
-        {
+        if(pClient->type == CLIENT_USER){
             process_client_msg(pClient,buf,bytesRecved, response);
         }
-        else if(pClient->type == CLIENT_SYNC_MASTER)
-        {
+        else if(pClient->type == CLIENT_SYNC_MASTER){
             process_sync_master_msg(pClient,buf,bytesRecved, response);
         }
-        else if(pClient->type == CLIENT_SYNC_SLAVE)
-        {
+        else if(pClient->type == CLIENT_SYNC_SLAVE){
             process_sync_slave_msg(pClient,buf,bytesRecved, response);
         }
 
-        if(!response.empty())
-        {
+        if(!response.empty()){
             send_response_to_client(pClient, response);
 
             // if QUIT cmd, disconnet the client
             string bye = "4.0 BYE";
-            if(0 == response.compare(0, bye.size(), bye))
-            {
+            if(0 == response.compare(0, bye.size(), bye)){
                 sleep(1);
 
                 conn_del(pClient->fd);
@@ -242,11 +215,8 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
 
 
 int proc_sync_ev_precommit_ack(clientEventCB *pClientEv)
-{
-    cout << "sync precommited ack" <<endl;
-
+{   
     clientCB* pClientUser;
-
     while((pClientUser = sync_find_waiting_commit_user_client()) != nullptr)
     {
         sync_send_commit(pClientUser->cmd, pClientUser->msg);
@@ -259,18 +229,13 @@ int proc_sync_ev_precommit_ack(clientEventCB *pClientEv)
 
 int proc_sync_ev_precommit_err(clientEventCB *pClientEv)
 {
-    cout << "sync precommited error:" <<endl;
-
     sync_send_abort();
 
     clientCB* pClientUser;
-
     while((pClientUser = sync_find_waiting_commit_user_client()) != nullptr)
     {
         string response = "3.2 ERROR WRITE";
-
         send_response_to_client(pClientUser, response);
-
         sync_clear_client_cmd(pClientUser);
     }
 
@@ -280,68 +245,50 @@ int proc_sync_ev_precommit_err(clientEventCB *pClientEv)
 int proc_sync_ev_commit_success(clientEventCB *pClientEv)
 {
     clientCB* pClientUser;
-
     int ret;
     bool isSuccess;
-
     string response;
 
-    while((pClientUser = sync_find_waiting_save_user_client()) != nullptr)
-    {
-        if(pClientEv->msgNumber != pClientUser->msgNumber)
-        {
+    while((pClientUser = sync_find_waiting_save_user_client()) != nullptr){
+        if(pClientEv->msgNumber != pClientUser->msgNumber){
             continue;
         }
 
         response.clear();
 
-        if(pClientUser->cmd == CLIENT_CMD_WRITE)
-        {
+        if(pClientUser->cmd == CLIENT_CMD_WRITE){
             ret = save_msg_write(pClientUser->msg);
-            if(ret == 0)
-            {
+            if(ret == 0){
                 response.append("3.0 WROTE ");
                 response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
-
                 isSuccess = true;
             }
-            else
-            {
+            else{
                 response.append("3.2 ERROR WRITE");
-
                 isSuccess = false;
             }
 
         }
-        else if(pClientUser->cmd == CLIENT_CMD_REPLACE)
-        {
+        else if(pClientUser->cmd == CLIENT_CMD_REPLACE){
             ret = save_msg_replace(pClientUser->msg);
-            if(ret == 0)
-            {
+            if(ret == 0){
                 response.append("3.0 WROTE ");
                 response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
-
                 isSuccess = true;
             }
-            else if(ret == -1)
-            {
+            else if(ret == -1){
                 response.append("3.1 UNKNOWN ");
                 response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
-
                 isSuccess = false;
             }
-            else
-            {
+            else{
                 response.append("3.2 ERROR WRITE");
-
                 isSuccess = false;
             }
         }
 
         sync_send_success(isSuccess, pClientEv->msgNumber);
-
         send_response_to_client(pClientUser, response);
-
         sync_clear_client_cmd(pClientUser);
     }
 
@@ -351,24 +298,19 @@ int proc_sync_ev_commit_success(clientEventCB *pClientEv)
 int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv)
 {
     clientCB* pClientUser;
-
     string response;
 
-    while((pClientUser = sync_find_waiting_save_user_client()) != nullptr)
-    {
-        if(pClientEv->msgNumber != pClientUser->msgNumber)
-        {
+    while((pClientUser = sync_find_waiting_save_user_client()) != nullptr){
+        if(pClientEv->msgNumber != pClientUser->msgNumber){
             continue;
         }
 
         response.clear();
 
-        if(pClientUser->cmd == CLIENT_CMD_WRITE)
-        {
+        if(pClientUser->cmd == CLIENT_CMD_WRITE){
             response.append("3.2 ERROR WRITE");
         }
-        else if(pClientUser->cmd == CLIENT_CMD_REPLACE)
-        {
+        else if(pClientUser->cmd == CLIENT_CMD_REPLACE){
             string str = "6.1 COMMITED UNSUCCESS UNKNOWN";
 
             if(pClientEv->response.compare(0, str.length(), str) == 0) //"6.1 COMMITED UNSUCCESS unknown-message-number")
@@ -377,16 +319,13 @@ int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv)
                 //response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));
                 response.append(pClientUser->msgNumber);
             }
-            else
-            {
+            else{
                 response.append("3.2 ERROR WRITE");
             }
         }
 
         send_response_to_client(pClientUser, response);
-
         sync_clear_client_cmd(pClientUser);
-
         sync_send_success(false, pClientEv->msgNumber);
     }
 
@@ -396,15 +335,12 @@ int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv)
 int proc_sync_ev_master_timeout(clientEventCB *pClientEv)
 {
     string msgNum, msg;
-
     syncState state = sync_get_master_state();
 
-    if(state == SYNC_M_PRECOMMIT_MULTICASTED)
-    {
+    if(state == SYNC_M_PRECOMMIT_MULTICASTED){
         sync_send_event(EV_SYNC_PRECOMMIT_ERR, msgNum, -1, msg);
     }
-    else if(state == SYNC_M_COMMITED)
-    {
+    else if(state == SYNC_M_COMMITED){
         sync_send_event(EV_SYNC_COMMIT_UNSUCCESS, msgNum, -1, msg);
     }
 
@@ -415,10 +351,8 @@ int proc_sync_ev_slave_timeout(clientEventCB *pClientEv)
 {
     clientCB* pClientSlave = client_list_get_first();
 
-    while(pClientSlave)
-    {
-        if((pClientSlave->type == CLIENT_SYNC_SLAVE) && (pClientSlave->slaveState == SYNC_S_PRECOMMIT_ACK))
-        {
+    while(pClientSlave){
+        if((pClientSlave->type == CLIENT_SYNC_SLAVE) && (pClientSlave->slaveState == SYNC_S_PRECOMMIT_ACK)){
             pClientSlave->slaveTimeout = true;
         }
 
@@ -427,8 +361,7 @@ int proc_sync_ev_slave_timeout(clientEventCB *pClientEv)
 
     sleep(1);
 
-    while((pClientSlave = sync_find_waiting_commit_slave_client()) != nullptr)
-    {
+    while((pClientSlave = sync_find_waiting_commit_slave_client()) != nullptr){
         sync_set_slave_state(pClientSlave, SYNC_IDLE);
         pClientSlave->slaveTimeout = false;
     }

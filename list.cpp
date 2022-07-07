@@ -16,24 +16,24 @@ CS590 Master Project(BBServer) @ Bishop's University
 
 
 std::string syncStateArray[SYNC_MAX] = {"NULL",
-                                          "DISCONNECT",
-                                          "IDLE",
-                                          "M_PRECOMMIT_MULTICASTED",
-                                          "M_PRECOMMITED",
-                                          "M_PRECOMMIT_UNSUCCESS",
-                                          "M_COMMITED",
-                                          "M_OPERATION_PERFORMED",
-                                          "M_OPERATION_UNSUCCESS",
+                                        "DISCONNECT",
+                                        "IDLE",
+                                        "M_PRECOMMIT_MULTICASTED",
+                                        "M_PRECOMMITED",
+                                        "M_PRECOMMIT_UNSUCCESS",
+                                        "M_COMMITED",
+                                        "M_OPERATION_PERFORMED",
+                                        "M_OPERATION_UNSUCCESS",
 
-                                          "S_PRECOMMIT_RECEIVED",
-                                          "S_PRECOMMIT_ACK",
-                                          "S_COMMITED",
-                                          "S_UNDO",
+                                        "S_PRECOMMIT_RECEIVED",
+                                        "S_PRECOMMIT_ACK",
+                                        "S_COMMITED",
+                                        "S_UNDO",
 
-                                          "U_WAITING_COMMIT",
-                                          "U_WAITING_SAVE",
-                                          "U_SAVING",
-                                          "U_SAVED"};
+                                        "U_WAITING_COMMIT",
+                                        "U_WAITING_SAVE",
+                                        "U_SAVING",
+                                        "U_SAVED"};
 
 
 LIST_HEAD(clientCBHead, _clientCB) clientList = LIST_HEAD_INITIALIZER(clientList);
@@ -41,96 +41,10 @@ LIST_HEAD(clientCBHead, _clientCB) clientList = LIST_HEAD_INITIALIZER(clientList
 pthread_mutex_t clientListLock;
 
 
-int test_list()
-{
-    clientCB *pClient1, *pClient2, *np;
-
-    pClient1 = new clientCB;
-
-    pClient1->fd = 1;
-
-    pClient2 = new clientCB;
-
-    pClient2->fd = 2;
-
-    client_list_add(pClient1);
-
-    client_list_add(pClient2);
-
-    LIST_FOREACH(np, &clientList, p)
-    {
-        cout <<"client list: fd = " << np->fd << endl;
-    }
-
-    //client_list_del(pClient1);
-    client_list_clear();
-
-    if(LIST_EMPTY(&clientList))
-    {
-        cout << "client list is empty" <<endl;
-    }
-
-/*
-//
-
-
-LIST_INIT(&head);
-
-clientCB *n1, *n2, *n3, *np, *np_temp;
-
-n1 = new clientCB;
-n2 = new clientCB;
-n3 = new clientCB;
-
-n1->fd =1;
-n2->fd =2;
-n3->fd =3;
-
-LIST_INSERT_HEAD(&head, n1, p);
-
-LIST_INSERT_HEAD(&head, n2, p);
-
-LIST_INSERT_HEAD(&head, n3, p);
-
-LIST_FOREACH(np, &head, p)
-{
-    cout << np->fd << endl;
-}
-
-LIST_REMOVE(n1, p);
-delete n1;
-
-LIST_FOREACH(np, &head, p)
-//LIST_FOREACH_SAFE(np, &head, p, np_temp)
-{
-    if(np->fd == 2)
-    {
-        LIST_REMOVE(np, p);
-        delete np;
-    }
-}
-
-LIST_FOREACH(np, &head, p)
-{
-    cout <<"delete n2: " << np->fd << endl;
-}
-
-while(!LIST_EMPTY(&head))
-{
-    n1 = LIST_FIRST(&head);
-    LIST_REMOVE(n1, p);
-    delete n1;
-}
-
-*/
-    return 0;
-
-}
 
 int create_client_list()
 {
-    if (pthread_mutex_init(&clientListLock, NULL) != 0)
-    {
+    if (pthread_mutex_init(&clientListLock, NULL) != 0){
         std::cout << "init clientListLock failed!" << std::endl;
     }
 
@@ -141,15 +55,12 @@ int create_client_list()
 
 int client_list_add(clientCB *pClient)
 {
-    if(!pClient)
-    {
+    if(!pClient){
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
-
     LIST_INSERT_HEAD(&clientList, pClient, p);
-
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -161,15 +72,12 @@ int client_list_add(clientCB *pClient)
 
 int client_list_del(clientCB *pClient)
 {
-    if(!pClient)
-    {
+    if(!pClient){
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
-
     LIST_REMOVE(pClient, p);
-
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -186,14 +94,11 @@ int client_list_clear()
     clientCB *np;
 
     pthread_mutex_lock(&clientListLock);
-
-    while(!LIST_EMPTY(&clientList))
-    {
+    while(!LIST_EMPTY(&clientList)){
         np = LIST_FIRST(&clientList);
         LIST_REMOVE(np, p);
         delete np;
     }
-
     pthread_mutex_unlock(&clientListLock);
 
     return 0;
@@ -202,7 +107,6 @@ int client_list_clear()
 void destroy_client_list()
 {
     client_list_clear();
-
     pthread_mutex_destroy(&clientListLock);
 
     LOG(DEBUG_LEVEL_D)
@@ -215,10 +119,8 @@ clientCB *client_list_find(int fd)
 {
     clientCB *np;
 
-    LIST_FOREACH(np, &clientList, p)
-    {
-        if(np->fd == fd)
-        {
+    LIST_FOREACH(np, &clientList, p){
+        if(np->fd == fd){
             LOG(DEBUG_LEVEL_APP)
                 cout << "client_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" Type:"<<np->type<<" name:"<<np->name<<endl;
 
@@ -235,11 +137,8 @@ int client_list_save_name(int fd, const char *str)
     int ret = -1;
 
     pthread_mutex_lock(&clientListLock);
-
-    LIST_FOREACH(np, &clientList, p)
-    {
-        if(np->fd == fd)
-        {
+    LIST_FOREACH(np, &clientList, p){
+        if(np->fd == fd){
             strcpy(np->name, str);
             ret = 0;
             break;
@@ -248,7 +147,7 @@ int client_list_save_name(int fd, const char *str)
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_APP)
-                cout << "client_list_save_name, fd:" << fd <<" name:"<<str<<endl;
+        cout << "client_list_save_name, fd:" << fd <<" name:"<<str<<endl;
 
     return ret;
 
@@ -279,22 +178,18 @@ clientCB *client_list_get_next(clientCB *pClient)
 */
 int sync_set_slave_state(clientCB *pClient, syncState state)
 {
-    if(!pClient)
-    {
+    if(!pClient){
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
-
     pClient->slaveState = state;
-
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_D)
-                cout << "set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
+        cout << "set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
 
-    switch(state)
-    {
+    switch(state){
         case SYNC_S_PRECOMMIT_ACK:
             start_timer_slave(SYNC_STATE_TIMEOUT);
             break;
@@ -314,17 +209,13 @@ syncState sync_get_slave_state(clientCB *pClient)
 {
     syncState state = SYNC_MAX;
 
-    if(!pClient)
-    {
+    if(!pClient){
         return SYNC_MAX;
     }
 
     pthread_mutex_lock(&clientListLock);
-
     state = pClient->slaveState;
-
     pthread_mutex_unlock(&clientListLock);
-
 
     return state;
 }
@@ -337,15 +228,12 @@ syncState sync_get_slave_state(clientCB *pClient)
 */
 int sync_set_client_state(clientCB *pClient, syncState state)
 {
-    if(!pClient)
-    {
+    if(!pClient){
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
-
     pClient->slaveState = state;
-
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_D)
@@ -357,28 +245,21 @@ int sync_set_client_state(clientCB *pClient, syncState state)
 
 int sync_save_client_cmd(clientCB *pClient, clientCmdType cmd, std::string& msg)
 {
-    if(!pClient)
-    {
+    if(!pClient){
         return -1;
     }
 
     pthread_mutex_lock(&clientListLock);
-
-    if(!pClient->msg.empty())
-    {
+    if(!pClient->msg.empty()){
         pClient->msg.clear();
     }
-
-    if(!pClient->msgNumber.empty())
-    {
+    if(!pClient->msgNumber.empty()){
         pClient->msgNumber.clear();
     }
-
     pClient->cmd = cmd;
     pClient->msg += msg;
     pClient->msgNumber += msg.substr(0, msg.find("/"));
     pClient->slaveState = SYNC_U_WAITING_COMMIT;
-
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -389,19 +270,14 @@ int sync_save_client_cmd(clientCB *pClient, clientCmdType cmd, std::string& msg)
 
 int sync_clear_client_cmd(clientCB *pClient)
 {
-    if(!pClient)
-    {
+    if(!pClient){
         return -1;
     }
 
-    pthread_mutex_lock(&clientListLock);
-
-    //pClient->cmd.clear();
+    pthread_mutex_lock(&clientListLock);   
     pClient->msg.clear();
     pClient->msgNumber.clear();
     pClient->slaveState = SYNC_IDLE;
-    //pClient->waitingSync = false;
-
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -414,13 +290,9 @@ clientCB * sync_find_waiting_commit_user_client()
 {
     clientCB *np, *ret = nullptr;
 
-
     pthread_mutex_lock(&clientListLock);
-
-    LIST_FOREACH(np, &clientList, p)
-    {
-        if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_COMMIT))
-        {
+    LIST_FOREACH(np, &clientList, p){
+        if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_COMMIT)){
             ret = np;
             break;
         }
@@ -434,13 +306,9 @@ clientCB * sync_find_waiting_save_user_client()
 {
     clientCB *np, *ret = nullptr;
 
-
     pthread_mutex_lock(&clientListLock);
-
-    LIST_FOREACH(np, &clientList, p)
-    {
-        if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_SAVE))
-        {
+    LIST_FOREACH(np, &clientList, p){
+        if((np->type == CLIENT_USER) && (np->slaveState == SYNC_U_WAITING_SAVE)){
             ret = np;
             break;
         }
@@ -455,11 +323,8 @@ clientCB * sync_find_waiting_commit_slave_client()
     clientCB *np, *ret = nullptr;
 
     pthread_mutex_lock(&clientListLock);
-
-    LIST_FOREACH(np, &clientList, p)
-    {
-        if((np->type == CLIENT_SYNC_SLAVE) && (np->slaveState == SYNC_S_PRECOMMIT_ACK))
-        {
+    LIST_FOREACH(np, &clientList, p){
+        if((np->type == CLIENT_SYNC_SLAVE) && (np->slaveState == SYNC_S_PRECOMMIT_ACK)){
             ret = np;
             break;
         }
@@ -482,8 +347,7 @@ pthread_mutex_t syncServerListLock;
 
 int create_sync_server_list()
 {
-    if (pthread_mutex_init(&syncServerListLock, NULL) != 0)
-    {
+    if (pthread_mutex_init(&syncServerListLock, NULL) != 0){
         std::cout << "init syncServerListLock failed!" << std::endl;
     }
 
@@ -494,32 +358,25 @@ int create_sync_server_list()
 
 int sync_server_list_add(syncServerCB *psyncServer)
 {
-    if(!psyncServer)
-    {
+    if(!psyncServer){
         return -1;
     }
 
     pthread_mutex_lock(&syncServerListLock);
-
     syncServerCB *np = LIST_FIRST(&syncServerList);
 
-    if(np == nullptr)
-    {
+    if(np == nullptr){
         LIST_INSERT_HEAD(&syncServerList, psyncServer, p);
     }
-    else
-    {
-        while(LIST_NEXT(np, p) != nullptr)
-        {
+    else{
+        while(LIST_NEXT(np, p) != nullptr){
             np = LIST_NEXT(np, p);
         }
 
         //insert the last
         LIST_INSERT_AFTER(np, psyncServer, p);
     }
-
     pthread_mutex_unlock(&syncServerListLock);
-
 
     LOG(DEBUG_LEVEL_APP)
         cout << "sync_server_list_add, fd:" << psyncServer->fd << " IP:" << psyncServer->ip << " Port:" << psyncServer->port <<endl;
@@ -530,15 +387,12 @@ int sync_server_list_add(syncServerCB *psyncServer)
 
 int sync_server_list_del(syncServerCB *psyncServer)
 {
-    if(!psyncServer)
-    {
+    if(!psyncServer){
         return -1;
     }
 
     pthread_mutex_lock(&syncServerListLock);
-
     LIST_REMOVE(psyncServer, p);
-
     pthread_mutex_unlock(&syncServerListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -555,14 +409,11 @@ int sync_server_list_clear()
     syncServerCB *np;
 
     pthread_mutex_lock(&syncServerListLock);
-
-    while(!LIST_EMPTY(&syncServerList))
-    {
+    while(!LIST_EMPTY(&syncServerList)){
         np = LIST_FIRST(&syncServerList);
         LIST_REMOVE(np, p);
         delete np;
     }
-
     pthread_mutex_unlock(&syncServerListLock);
 
     return 0;
@@ -575,7 +426,7 @@ void destroy_sync_server_list()
     pthread_mutex_destroy(&syncServerListLock);
 
     LOG(DEBUG_LEVEL_D)
-            cout << "Sync server list deleted!" << endl;
+        cout << "Sync server list deleted!" << endl;
 
     return;
 }
@@ -585,10 +436,8 @@ syncServerCB *sync_server_list_find(int fd)
 {
     syncServerCB *np;
 
-    LIST_FOREACH(np, &syncServerList, p)
-    {
-        if(np->fd == fd)
-        {
+    LIST_FOREACH(np, &syncServerList, p){
+        if(np->fd == fd){
             LOG(DEBUG_LEVEL_APP)
                 cout << "sync_server_list_find, fd:" << np->fd << " IP:" << np->ip << " Port:" << np->port <<" name:"<<np->hostname<<endl;
 
@@ -617,15 +466,12 @@ syncServerCB *sync_server_list_get_next(syncServerCB *pServer)
 
 int sync_server_list_set_state(syncServerCB *pServer, syncState state)
 {
-    if(!pServer)
-    {
+    if(!pServer){
         return -1;
     }
 
     pthread_mutex_lock(&syncServerListLock);
-
     pServer->state = state;
-
     pthread_mutex_unlock(&syncServerListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -636,15 +482,12 @@ int sync_server_list_set_state(syncServerCB *pServer, syncState state)
 
 int sync_server_list_set_fd(syncServerCB *pServer, int fd)
 {
-    if(!pServer)
-    {
+    if(!pServer){
         return -1;
     }
 
     pthread_mutex_lock(&syncServerListLock);
-
     pServer->fd = fd;
-
     pthread_mutex_unlock(&syncServerListLock);
 
     LOG(DEBUG_LEVEL_APP)
@@ -667,22 +510,17 @@ int sync_set_master_state(syncState state)
     syncServerCB *pServer;
 
     pthread_mutex_lock(&syncServerListLock);
-
     pServer = LIST_FIRST(&syncServerList);
-
-    if(pServer)
-    {
+    if(pServer){
         pServer->masterState = state;
     }
-
     pthread_mutex_unlock(&syncServerListLock);
 
     LOG(DEBUG_LEVEL_D)
-                cout << "set sync master state [" <<syncStateArray[state] <<"]" <<endl;
+        cout << "set sync master state [" <<syncStateArray[state] <<"]" <<endl;
 
     //timer
-    switch(state)
-    {
+    switch(state){
         case SYNC_M_PRECOMMIT_MULTICASTED:
         case SYNC_M_COMMITED:
             start_timer_master(SYNC_STATE_TIMEOUT);
@@ -699,7 +537,6 @@ int sync_set_master_state(syncState state)
             break;
     }
 
-
     return 0;
 }
 
@@ -707,18 +544,13 @@ int sync_set_master_state(syncState state)
 syncState sync_get_master_state()
 {
     syncServerCB *pServer;
-
     syncState state = SYNC_MAX;
 
     pthread_mutex_lock(&syncServerListLock);
-
     pServer = LIST_FIRST(&syncServerList);
-
-    if(pServer)
-    {
+    if(pServer){
         state = pServer->masterState;
     }
-
     pthread_mutex_unlock(&syncServerListLock);
 
     return state;
@@ -726,8 +558,7 @@ syncState sync_get_master_state()
 
 void print_sync_state(syncState state)
 {
-    if(state < SYNC_MAX)
-    {
+    if(state < SYNC_MAX){
         cout << "[" << syncStateArray[state] <<"]" <<endl;
     }
 

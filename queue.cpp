@@ -22,8 +22,7 @@ pthread_cond_t cond_clientEvQueue = PTHREAD_COND_INITIALIZER;
 
 int create_client_event_queue()
 {
-    if (pthread_mutex_init(&clientEvQueueLock, NULL) != 0)
-    {
+    if (pthread_mutex_init(&clientEvQueueLock, NULL) != 0){
         std::cout << "init clientEvQueueLock failed!" << std::endl;
     }
 
@@ -34,8 +33,7 @@ int create_client_event_queue()
 
 void destroy_client_event_queue()
 {
-    while(!isClientEventQueueEmpty())
-    {
+    while(!isClientEventQueueEmpty()){
         delete deClientEventQueue();
     }
 
@@ -54,11 +52,8 @@ void enClientEventQueue(clientEventCB *pClientEv)
         std::cout << "enClientEvQueue type:" << pClientEv->event << " fd:" << pClientEv->fd << std::endl;
 
     pthread_mutex_lock(&clientEvQueueLock);
-
     STAILQ_INSERT_TAIL(&clientEvQueue, pClientEv, p);
-
     pthread_cond_signal(&cond_clientEvQueue);
-
     pthread_mutex_unlock(&clientEvQueueLock);
 
     return;
@@ -69,17 +64,12 @@ clientEventCB *deClientEventQueue()
     clientEventCB *p = nullptr;
 
     pthread_mutex_lock(&clientEvQueueLock);
-
     pthread_cond_wait(&cond_clientEvQueue, &clientEvQueueLock);
-
-    if (STAILQ_EMPTY(&clientEvQueue))
-    {
+    if (STAILQ_EMPTY(&clientEvQueue)){
         p = nullptr;
     }
-    else
-    {
+    else{
         p = STAILQ_FIRST(&clientEvQueue);
-
         STAILQ_REMOVE_HEAD(&clientEvQueue,p);
 
         LOG(DEBUG_LEVEL_QUEUE)

@@ -53,19 +53,14 @@ void read_start()
         std::cout << "BBFile Access: read trying!" << std::endl;
 
     pthread_mutex_lock(&readerMutex);
-
     readerCnt++;
-
-    if(readerCnt == 1)
-    {
+    if(readerCnt == 1){
         sem_wait(&wrt);
     }
-
     pthread_mutex_unlock(&readerMutex);
 
     LOG(DEBUG_LEVEL_D)
         std::cout << "BBFile Access: read begin! set reader count["<<readerCnt<<"]" << std::endl;
-
 
     //for test
     bbfile_debug_wait(3);
@@ -78,14 +73,10 @@ void read_start()
 void read_end()
 {
     pthread_mutex_lock(&readerMutex);
-
     readerCnt--;
-
-    if(readerCnt == 0)
-    {
+    if(readerCnt == 0){
         sem_post(&wrt);
     }
-
     pthread_mutex_unlock(&readerMutex);
 
     LOG(DEBUG_LEVEL_D)
@@ -97,8 +88,7 @@ void read_end()
 
 int init_bbfile_access_semahpores()
 {
-    if (pthread_mutex_init(&readerMutex, NULL) != 0)
-    {
+    if (pthread_mutex_init(&readerMutex, NULL) != 0){
         std::cout << "init readerMutex failed!" << std::endl;
     }
 
@@ -120,8 +110,7 @@ int destroy_bbfile_access_semahpores()
 
 void bbfile_debug_wait(int time)
 {
-    if(SysCfgCB.debug)
-    {
+    if(SysCfgCB.debug){
         sleep(time);
     }
 

@@ -22,8 +22,7 @@ int init_sync_server_list()
 
     string peers = string(SysCfgCB.peers);
 
-    if(peers.empty())
-    {
+    if(peers.empty()){
         cout << "No sync peer configured!" << endl;
         return -1;
     }
@@ -31,29 +30,23 @@ int init_sync_server_list()
     create_sync_server_list();
 
     pos = 0;
-
     string server, serverIp, serverport;
 
-    while(keepsearching)
-    {
+    while(keepsearching){
         server.clear();
         serverport.clear();
-
         pos1 = peers.find(":", pos);
 
-        if(pos1 != string::npos)
-        {
+        if(pos1 != string::npos){
             pos2 = peers.find(" ", pos1);
 
-            if(pos2 != string::npos)
-            {
+            if(pos2 != string::npos){
                 server += peers.substr(pos, pos1-pos);
                 serverport += peers.substr(pos1+1, pos2-pos1-1);
 
                 pos = pos2+(long)1; //search next : from pos2
             }
-            else
-            {
+            else{
                 //the last peer
                 server += peers.substr(pos, pos1-pos);
                 serverport += peers.substr(pos1+(long)1, peers.length()-pos1);
@@ -73,12 +66,10 @@ int init_sync_server_list()
 
             serverIp.clear();
 
-            if(host)
-            {
+            if(host){
                 serverIp += inet_ntoa(*((struct in_addr**)host->h_addr_list)[0]);
             }
-            else
-            {
+            else{
                 serverIp += server;
             }
 
@@ -89,8 +80,7 @@ int init_sync_server_list()
 
             sync_server_list_add(pServer);
         }
-        else
-        {
+        else{
             keepsearching = false;
         }
     }
@@ -104,8 +94,7 @@ int init_sync_server_connection()
     int fd = -1;
     int initState = 0;
 
-    if(sync_server_list_empty())
-    {
+    if(sync_server_list_empty()){
         LOG(DEBUG_LEVEL_APP)
                 cout << "sync server list is empty"<<endl;
 
@@ -114,30 +103,24 @@ int init_sync_server_connection()
 
     pServer = sync_server_list_get_first();
 
-    while(pServer != nullptr)
-    {
+    while(pServer != nullptr){
         //check server state
-        if(pServer->state == SYNC_DISCONNECT)
-        {
+        if(pServer->state == SYNC_DISCONNECT){
             fd = sync_connect_to_server(pServer->ip, pServer->port);
 
-            if( fd >= 0)
-            {
+            if( fd >= 0){
                 sync_server_list_set_fd(pServer,fd);
                 sync_server_list_set_state(pServer, SYNC_IDLE);
             }
-            else
-            {
+            else{
                 //return -1;
                 initState = -1;
             }
         }
-
         pServer = sync_server_list_get_next(pServer);
     }
 
-    if(sync_check_server_state(SYNC_IDLE))
-    {
+    if(sync_check_server_state(SYNC_IDLE)){
         sync_set_master_state(SYNC_IDLE);
     }
 
@@ -152,28 +135,24 @@ int sync_send_precommit()
 
     syncServerCB *pServer = sync_server_list_get_first();
 
-    while(pServer != nullptr)
-    {
+    while(pServer != nullptr){
         int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
         CHECK(ret);
 
-        if(ret >= 0)
-        {
+        if(ret >= 0){
             sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
 
             LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
-        else
-        {
+        else{
             return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
     }
 
-    if(sync_check_server_state(SYNC_M_PRECOMMIT_MULTICASTED))
-    {
+    if(sync_check_server_state(SYNC_M_PRECOMMIT_MULTICASTED)){
         sync_set_master_state(SYNC_M_PRECOMMIT_MULTICASTED);
     }
 
@@ -188,31 +167,26 @@ int sync_send_abort()
 
     syncServerCB *pServer = sync_server_list_get_first();
 
-    while(pServer != nullptr)
-    {
+    while(pServer != nullptr){
         int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
         CHECK(ret);
 
-        if(ret >= 0)
-        {
+        if(ret >= 0){
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
             LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
-        else
-        {
+        else{
             return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
     }
 
-    if(sync_check_server_state(SYNC_IDLE))
-    {
+    if(sync_check_server_state(SYNC_IDLE)){
         sync_set_master_state(SYNC_IDLE);
     }
-
 
     return 0;
 }
@@ -226,12 +200,10 @@ int sync_send_commit(clientCmdType type, string& msgbody)
     string msg = string("COMMIT");
 
     msg += " ";
-    if(type == CLIENT_CMD_WRITE)
-    {
+    if(type == CLIENT_CMD_WRITE){
         msg += "WRITE";
     }
-    else if(type == CLIENT_CMD_REPLACE)
-    {
+    else if(type == CLIENT_CMD_REPLACE){
         msg += "REPLACE";
     }
 
@@ -242,29 +214,24 @@ int sync_send_commit(clientCmdType type, string& msgbody)
 
     syncServerCB *pServer = sync_server_list_get_first();
 
-    while(pServer != nullptr)
-    {
+    while(pServer != nullptr){
         int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
         CHECK(ret);
 
-        if(ret >= 0)
-        {
+        if(ret >= 0){
             sync_server_list_set_state(pServer, SYNC_M_COMMITED);
 
             LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
-
         }
-        else
-        {
+        else{
             return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
     }
 
-    if(sync_check_server_state(SYNC_M_COMMITED))
-    {
+    if(sync_check_server_state(SYNC_M_COMMITED)){
         sync_set_master_state(SYNC_M_COMMITED);
     }
 
@@ -275,12 +242,10 @@ int sync_send_success(bool isSuccessful, string& msgNumber)
 {
     string msg;
 
-    if(isSuccessful)
-    {
+    if(isSuccessful){
         msg += "END SUCCESS";
     }
-    else
-    {
+    else{
         msg += "END UNSUCCESS";
     }
 
@@ -291,28 +256,24 @@ int sync_send_success(bool isSuccessful, string& msgNumber)
 
     syncServerCB *pServer = sync_server_list_get_first();
 
-    while(pServer != nullptr)
-    {
+    while(pServer != nullptr){
         int ret = send(pServer->fd, msg.c_str(), msg.size(),0);
         CHECK(ret);
 
-        if(ret >= 0)
-        {
+        if(ret >= 0){
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
             LOG(DEBUG_LEVEL_D)
                 cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
-        else
-        {
+        else{
             return -1;
         }
 
         pServer = sync_server_list_get_next(pServer);
     }
 
-    if(sync_check_server_state(SYNC_IDLE))
-    {
+    if(sync_check_server_state(SYNC_IDLE)){
         sync_set_master_state(SYNC_IDLE);
     }
 
@@ -326,7 +287,6 @@ int sync_connect_to_server(string& ip, unsigned int port)
     sockaddr_in servaddr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
     CHECK_EXIT(sockfd);
 
     servaddr.sin_family = AF_INET;
@@ -337,13 +297,11 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     //CHECK(ret);
 
-    if(ret == 0)
-    {
+    if(ret == 0){
         LOG(DEBUG_LEVEL_D)
             cout << "connected to sync server:" <<ip<<":"<<port<<endl;
     }
-    else
-    {
+    else{
         LOG(DEBUG_LEVEL_D)
             cout << "failed to connect to sync server:" <<ip<<":"<<port<<endl;
 
@@ -352,7 +310,6 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     //connected
     conn_add(sockfd);
-
 
     //add new client to client list
     clientCB *pClient = new clientCB;
@@ -365,7 +322,6 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     client_list_add(pClient);
 
-
     return sockfd;
 }
 
@@ -374,11 +330,9 @@ bool sync_check_server_state(syncState state)
 {
     syncServerCB *pServer = sync_server_list_get_first();
 
-    while(pServer != nullptr)
-    {
+    while(pServer != nullptr){
         //check server state
-        if(pServer->state != state)
-        {
+        if(pServer->state != state){
             return false;
         }
 
@@ -425,13 +379,8 @@ timer_t timerid_master, timerid_slave;
 
 void handle_master_timeout(int sig)
 {
-
-    //signal(sig, SIG_INT);
-    //signal(SIG_INT, handler);
     LOG(DEBUG_LEVEL_D)
-            cout <<"sync master state timeout!"<<endl;
-
-    //stop_timer_master();
+        cout <<"sync master state timeout!"<<endl;  
 
     sync_send_event_timeout(EV_SYNC_TIMEOUT_MASTER);
 
@@ -444,9 +393,7 @@ void handle_slave_timeout(int sig)
     //signal(sig, SIG_INT);
     //signal(SIG_INT, handler);
     LOG(DEBUG_LEVEL_D)
-            cout <<"sync slave state timeout!"<<endl;
-
-    //stop_timer_slave();
+            cout <<"sync slave state timeout!"<<endl;   
 
     sync_send_event_timeout(EV_SYNC_TIMEOUT_SLAVE);
 
@@ -556,7 +503,7 @@ int start_timer_master(int sec)
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-            cout << "start sync master state timer:" <<sec<<"S"<<endl;
+        cout << "start sync master state timer:" <<sec<<"S"<<endl;
 
     return 0;
 }
@@ -573,7 +520,7 @@ int start_timer_slave(int sec)
     CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-            cout << "start sync slave state timer:" <<sec<<"S"<<endl;
+        cout << "start sync slave state timer:" <<sec<<"S"<<endl;
 
     return 0;
 }
@@ -590,7 +537,7 @@ int stop_timer_master()
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-            cout << "stop sync master state timer" << endl;
+        cout << "stop sync master state timer" << endl;
 
     return 0;
 }
@@ -607,7 +554,7 @@ int stop_timer_slave()
     CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-            cout << "stop sync slave state timer" << endl;
+        cout << "stop sync slave state timer" << endl;
 
     return 0;
 }
@@ -617,7 +564,7 @@ int delete_timer_master()
     timer_delete(timerid_master);
 
     LOG(DEBUG_LEVEL_D)
-            cout << "Sync master state timer deleted!" << endl;
+        cout << "Sync master state timer deleted!" << endl;
 
     return 0;
 }
@@ -627,7 +574,7 @@ int delete_timer_slave()
     timer_delete(timerid_slave);
 
     LOG(DEBUG_LEVEL_D)
-            cout << "Sync slave state timer deleted!" << endl;
+        cout << "Sync slave state timer deleted!" << endl;
 
     return 0;
 }

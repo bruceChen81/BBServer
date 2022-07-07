@@ -28,8 +28,7 @@ void *handle_client_event(void *arg);
 
 
 int main(int argc, char *argv[])
-{
-    
+{    
     //signal(SIGINT, sigint_handler);
 
     signal(SIGINT, sighup_handler);
@@ -38,11 +37,9 @@ int main(int argc, char *argv[])
 
     //signal(SIGHUP, sighup_handler);
 
-
     sys_load_config(argc, argv);    
 
-    if(SysCfgCB.daemon)
-    {
+    if(SysCfgCB.daemon){
         daemon(1,1);
 
         //redirect stdout to bbserv.log
@@ -67,13 +64,10 @@ int main(int argc, char *argv[])
 
     string str;
 
-    while(getline(cin, str))
-    {
+    while(getline(cin, str)){
         cout <<"Input: "<< str << endl;
-
         sleep(1);
     }
-
 
     return 0;
 }
@@ -84,9 +78,7 @@ int main(int argc, char *argv[])
 int create_thread_pool()
 {
     pthread_t threadPool[SysCfgCB.thMax];
-
-    for(unsigned int i=0;i<SysCfgCB.thMax;i++)
-    {
+    for(unsigned int i=0;i<SysCfgCB.thMax;i++){
         pthread_create(&threadPool[i], NULL, handle_client_event, NULL);
     }
 
@@ -96,7 +88,6 @@ int create_thread_pool()
 void *handle_tcp_connection(void *arg)
 {
     char *uargv = nullptr;
-
     start_conn_service();
 
     return uargv;
@@ -105,7 +96,6 @@ void *handle_tcp_connection(void *arg)
 int create_tcp_connection_thread()
 {
     pthread_t threadConn;
-
     pthread_create(&threadConn, NULL, handle_tcp_connection, NULL);
 
     return 0;
@@ -114,9 +104,9 @@ int create_tcp_connection_thread()
 
 int sys_load_config(int argc, char *argv[])
 {
-    if (load_config((char *)DEFAULT_CFG_FILE) >= 0)
-    {
-        if(SysCfgCB.debugLevel >= DEBUG_LEVEL_D)
+    if (load_config((char *)DEFAULT_CFG_FILE) >= 0){
+
+        LOG(DEBUG_LEVEL_D)
             cout << "Load config file success!" << endl;
     }
 
@@ -125,20 +115,16 @@ int sys_load_config(int argc, char *argv[])
     load_option(argc, argv);
 
     //check if bbfile is set
-    if(!strlen(SysCfgCB.bbFile))
-    {
+    if(!strlen(SysCfgCB.bbFile)){
         cout << "BBFILE name is not configured, please set by config file or command line -b !!!"<< endl;
         exit(-1);
-    }
-
-    //load_msg_number();
+    }  
 
     return 0;
 }
 
 int sys_reload_config_sighub()
 {
-
     //relaod config file
     bool debug = SysCfgCB.debug;
 
@@ -147,16 +133,13 @@ int sys_reload_config_sighub()
     //load_config((char *)DEFAULT_CFG_FILE);
     load_config(cfgFile.c_str());
 
-
     SysCfgCB.debug = debug;
-
     SysCfgCB.debugLevel = debug ? DEBUG_LEVEL_D : DEBUG_LEVEL_NONE;
 
     print_config();
 
     //check if bbfile is set
-    if(!strlen(SysCfgCB.bbFile))
-    {
+    if(!strlen(SysCfgCB.bbFile)){
         cout << "BBFILE name is not configured, please set by config file or command line -b !!!"<< endl;
         exit(-1);
     }
@@ -172,51 +155,43 @@ int sys_bootup()
 {
     cout << "System booting up......................" <<endl;
 
-    if(create_client_list() >= 0)
-    {
+    if(create_client_list() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Client list created!" << endl;
     }
 
-    if(create_client_event_queue() >= 0)
-    {
+    if(create_client_event_queue() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Client event queue created!" << endl;
     }
 
 
-    if(create_thread_pool() >= 0)
-    {
+    if(create_thread_pool() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Client event process thread pool created!" << endl;
     }
 
-    if(init_bbfile_access_semahpores() >= 0)
-    {
+    if(init_bbfile_access_semahpores() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Init bbfile access control semaphores success!" << endl;
     }
 
-    if(init_sync_server_list() >= 0)
-    {
+    if(init_sync_server_list() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Init sync server list success!" << endl;
     }
 
-    if(create_tcp_connection_thread() >= 0)
-    {
+    if(create_tcp_connection_thread() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "TCP connection process thread created!" << endl;
     }
 
-    if(create_timer_master() >= 0)
-    {
+    if(create_timer_master() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Sync master timer created!" << endl;
     }
 
-    if(create_timer_slave() >= 0)
-    {
+    if(create_timer_slave() >= 0){
         LOG(DEBUG_LEVEL_D)
             cout << "Sync slave timer created!" << endl;
     }
@@ -227,7 +202,6 @@ int sys_bootup()
 int sys_terminate()
 {
     cout << "System terminating......" <<endl;
-
 
     destroy_client_list();
 
@@ -241,7 +215,6 @@ int sys_terminate()
 
     destroy_connection();
 
-
     //close opend file
 
     return 0;
@@ -250,7 +223,6 @@ int sys_terminate()
 void sigint_handler(int sig)
 {
     cout << "catch SIGINT signal!" <<endl;
-
     sys_terminate();
 
     signal(SIGINT, SIG_DFL);
@@ -261,7 +233,6 @@ void sigint_handler(int sig)
 void sigquit_handler(int sig)
 {
     cout << "catch SIGQUIT signal!" <<endl;
-
     //waiting end of file ope
 
     //write_start();
