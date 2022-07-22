@@ -29,13 +29,13 @@ void *handle_client_event(void *arg);
 
 int main(int argc, char *argv[])
 {    
-    //signal(SIGINT, sigint_handler);
+    signal(SIGINT, sigint_handler);
 
-    signal(SIGINT, sighup_handler);
+    //signal(SIGINT, sighup_handler);
 
     signal(SIGQUIT, sigquit_handler);
 
-    //signal(SIGHUP, sighup_handler);
+    signal(SIGHUP, sighup_handler);
 
     sys_load_config(argc, argv);    
 
@@ -119,6 +119,8 @@ int sys_load_config(int argc, char *argv[])
         cout << "BBFILE name is not configured, please set by config file or command line -b !!!"<< endl;
         exit(-1);
     }  
+
+    load_msg_number();
 
     return 0;
 }

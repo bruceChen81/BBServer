@@ -303,7 +303,7 @@ int sync_connect_to_server(string& ip, unsigned int port)
     }
     else{
         LOG(DEBUG_LEVEL_D)
-            cout << "failed to connect to sync server:" <<ip<<":"<<port<<endl;
+            cout << "ERROR: Failed to connect to sync server:" <<ip<<":"<<port<<endl;
 
         return -1;
     }

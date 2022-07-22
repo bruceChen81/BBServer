@@ -45,7 +45,15 @@ int load_config(const char *pCfgFile);
 
 int load_option(int argc, char **argv);
 
+int load_msg_number();
+
 std::string alloc_new_msg_number();
+
+int get_new_msg_number(std::string& strNumber);
+
+int update_msg_number(std::string& strNumber);
+
+
 
 
 #endif // CONFIG_H_INCLUDED

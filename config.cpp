@@ -31,7 +31,10 @@ int getParaFromBuf(char *buf, char *para, char *keyword){
     int offset = strlen(keyword);
     memcpy(para, p1+offset, p2-(p1+offset));
 
-    return SUCCESS;
+    if(strlen(para) == 0)
+        return -1;
+    else
+        return SUCCESS;
 }
 
 int print_config()
@@ -225,18 +228,35 @@ int load_option(int argc, char **argv)
                 break;
 
             default:
-                //peers ?? host:port
-//                if(strstr(optarg,":") != nullptr)
-//                {
-//                    peerflag = 1;
-//                    cout << optarg << endl;
-//                    strcpy(CONFIG.peers, optarg);
-//                }
-//                else
                 {
                     cout<<"Invalid option or argument!"<<endl;
                 }
                 break;
+        }
+    }
+
+    argc -= optind;
+    argv += optind;
+
+    int cnt_peers = argc;
+
+    if(cnt_peers > 0)
+    {
+        peerflag = true;
+
+        //cout << "cnt peers:" << cnt_peers << endl;
+
+        for(int i=0;i<cnt_peers;i++)
+        {
+            //cout <<argv[i] <<endl;
+
+            if(strstr(argv[i], ":") != nullptr){
+                strcat(optionCFG.peers, argv[i]);
+
+                if(i != cnt_peers-1){
+                    strcat(optionCFG.peers, " ");
+                }
+            }
         }
     }
 
@@ -298,6 +318,137 @@ int load_option(int argc, char **argv)
 
 //message number
 
+int msgNumber = 0;
+
+pthread_mutex_t clientMsgNoLock;
+
+int get_last_line(string& lastline)
+{
+    //string filename = "bbfile";
+    fstream myFile;
+
+    myFile.open(SysCfgCB.bbFile, ios::in);//read
+    if(myFile.is_open())
+    {
+        myFile.seekg(-2, std::ios::end);
+
+        bool keeplooping = true;
+
+        while(keeplooping)
+        {
+            char ch;
+            myFile.get(ch);
+
+            if((int)myFile.tellg()<=1)
+            {
+                myFile.seekg(0);
+                keeplooping = false;
+            }
+            else if(ch == '\n')
+            {
+                keeplooping = false;
+            }
+            else
+            {
+                myFile.seekg(-2, std::ios_base::cur);
+            }
+        }
+
+        //string lastline;
+        getline(myFile, lastline);
+
+        LOG(DEBUG_LEVEL_APP)
+            cout<<"bbfile get_last_line:"<<lastline<<endl;
+
+        myFile.close();
+    }
+
+    return 0;
+}
+
+
+string alloc_new_msg_number()
+{
+    int number;
+
+    pthread_mutex_lock(&clientMsgNoLock);
+
+    msgNumber++;
+
+    if(msgNumber == INT_MAX)
+    {
+        msgNumber = 1;
+    }
+
+    number = msgNumber;
+
+    pthread_mutex_unlock(&clientMsgNoLock);
+
+    string strNumber = std::to_string(number);
+
+    LOG(DEBUG_LEVEL_APP)
+        cout << "alloc new msg number:" << strNumber <<endl;
+
+    return strNumber;
+}
+
+
+int update_msg_number(std::string& strNumber)
+{
+    LOG(DEBUG_LEVEL_APP)
+        cout << "update msg number, input:" << strNumber <<endl;
+
+    int number = stoi(strNumber);
+
+    if(number <= 0)
+        return -1;
+
+    pthread_mutex_lock(&clientMsgNoLock);
+
+    msgNumber = number;
+
+    if(msgNumber == INT_MAX)
+    {
+        msgNumber = 1;
+    }
+
+    pthread_mutex_unlock(&clientMsgNoLock);
+
+    LOG(DEBUG_LEVEL_APP)
+        cout << "update msg number:" << msgNumber <<endl;
+
+    return 0;
+}
+
+
+int load_msg_number()
+{
+    string lastline;
+    string msgNumLast;
+
+    pthread_mutex_init(&clientMsgNoLock, NULL);
+
+    get_last_line(lastline);
+
+    msgNumLast = lastline.substr(0, lastline.find("/"));
+
+    if(msgNumLast.empty())
+    {
+        LOG(DEBUG_LEVEL_APP)
+            cout << "can not read last message number!" << endl;
+
+        return -1;
+    }
+
+    msgNumber = stoi(msgNumLast);
+
+    LOG(DEBUG_LEVEL_APP)
+        cout << "load message number:" << msgNumber << endl;
+
+    return 0;
+}
+
+
 //millisecond
 string get_time_ms()
 {
@@ -326,12 +477,3 @@ string get_time_ms()
     return datetime;
 }
 
-string alloc_new_msg_number()
-{
-    string strNumber = get_time_ms();
-
-    LOG(DEBUG_LEVEL_APP)
-        cout << "alloc new msg number:" << strNumber <<endl;
-
-    return strNumber;
-}

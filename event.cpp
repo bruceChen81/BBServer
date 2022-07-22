@@ -301,7 +301,7 @@ int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv)
     string response;
 
     while((pClientUser = sync_find_waiting_save_user_client()) != nullptr){
-        if(pClientEv->msgNumber != pClientUser->msgNumber){
+        if((!pClientEv->msgNumber.empty()) && (pClientEv->msgNumber != pClientUser->msgNumber)){
             continue;
         }
 

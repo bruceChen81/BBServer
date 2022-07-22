@@ -37,12 +37,12 @@ int process_sync_master_msg(clientCB *pClient, char *buf, int length, string& re
     //5.1 ERROR PRECOMMIT
 
     //6.0 COMMITED SUCCESS message-number
-    //6.1 COMMITED UNSUCCESS UNKNOWN message-number
-    //6.2 COMMITED UNSUCCESS message-number
+    //6.1 COMMITED UNSUCCESS message-number
+    //6.2 COMMITED UNSUCCESS UNKNOWN message-number
 
     string str1 = "6.0 COMMITED SUCCESS";
-    string str2 = "6.1 COMMITED UNSUCCESS UNKNOWN";
-    string str3 = "6.2 COMMITED UNSUCCESS";
+    string str2 = "6.1 COMMITED UNSUCCESS";
+    string str3 = "6.2 COMMITED UNSUCCESS UNKNOWN";
 
     if(msg == "5.0 PRECOMMIT ACK"){
         sync_server_list_set_state(pServer, SYNC_M_PRECOMMITED);
@@ -163,6 +163,7 @@ int process_sync_slave_msg(clientCB *pClient, char *buf, int length, string& res
 
         if(save_msg_write(msgSave) == 0){
             response.append("6.0 COMMITED SUCCESS");
+            update_msg_number(msgnumber);
         }
         else{
             response.append("6.1 COMMITED UNSUCCESS");
