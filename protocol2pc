@@ -1,0 +1,204 @@
+Peer Communication Protocol
+
+1 Message design
+Every command and response consists of a single line of text, terminated by the character '\n'. 
+
+1.1 Precommit message
+COMMAND:  PRECOMMIT
+RESPONSE: 5.0 PRECOMMIT ACK
+          5.1 ERROR PRECOMMIT
+
+When one server receives "WRITE" or "REPLACE" command from a client, the server becomes master and broadcasts "PRECOMMIT" message to all the peers configured.
+
+The servers received "PRECOMMIT" message which are available for synchronization will respond "5.0 PRECOMMIT ACK" message.
+The servers which are not ready will send back "5.1 ERROR PRECOMMIT" message.
+
+1.2 Abort message
+COMMAND:  ABORT
+When "PRECOMMIT" message sent, if there exists "5.1 ERROR PRECOMMIT" message sent back or time out as no response from any one of the peer servers, the master sends "ABORT" message to all the slaves.
+
+1.3 Commit message
+COMMAND:  COMMIT WRITE message-number/user/message
+          COMMIT REPLACE message-number/user/message
+RESPONSE: 6.0 COMMITED SUCCESS message-number
+          6.1 COMMITED UNSUCCESS message-number
+          6.2 COMMITED UNSUCCESS UNKNOWN message-number
+When the precommit phase succeeds, the master sends COMMIT message to all the slaves, followed by WRITE or REPLACE command keyword, message number, user name and message body.
+
+When the slave completes the corresponding operation successfully, it sends back "6.0 COMMITED SUCCESS message-number" message.
+When the slave fails, it sends back "6.1 COMMITED UNSUCCESS message-number".
+In particular，when the slave can not find the message number carried by COMMIT REPLACE message in local storage, it will send back "6.2 COMMITED UNSUCCESS UNKNOWN message-number".
+
+1.4 End message
+COMMAND: END SUCCESS message-number 
+         END UNSUCCESS message-number 
+When all slaves response "6.0 COMMITED SUCCESS message-number", the master broadcasts "END SUCCESS message-number" message to all slaves.
+When any slave sends back "6.1 COMMITED UNSUCCESS UNKNOWN message-number" or "6.2 COMMITED UNSUCCESS message-number" message, or time out as no response from any one of the slaves, the master broadcasts "END UNSUCCESS message-number" message to all the slaves.
+
+
+2 Process design
+
+2.1 Single slave
+
+2.1.1 Successful process
+
+MASTER                                 SLAVE
+  |                                      |
+  |--------------PRECOMMIT-------------->|
+  |					 |
+  |<-----------5.0 PRECOMMIT ACK---------|
+  |      				 |
+  |--------------COMMIT----------------->|
+  |                                      |
+  |<---------6.0 COMMITED SUCCESS--------|
+  |					 |
+  |-------------END SUCCESS------------->|
+  |                                      |
+       
+           
+2.1.2 Process Failed in phase 1
+
+MASTER                                 SLAVE
+  |                                      |
+  |--------------PRECOMMIT-------------->|
+  |					 |
+  |<-----------5.1 ERROR PRECOMMIT-------|
+  |      				 |
+  |---------------ABORT----------------->|
+  |                                      |
+
+          
+2.1.2 Process Failed in phase 2
+
+MASTER                                 SLAVE
+  |                                      |
+  |--------------PRECOMMIT-------------->|
+  |					 |
+  |<-----------5.0 PRECOMMIT ACK---------|
+  |      				 |
+  |--------------COMMIT----------------->|
+  |                                      |
+  |<-------6.1 COMMITED UNSUCCESS--------|
+  |					 |
+  |------------END UNSUCCESS------------>|
+  |                                      |
+
+           
+
+2.2 Multiple slaves
+
+In all multiple slaves scenarios as following, we take two slaves as an example.
+
+2.2.1 Successful process
+
+SLAVE1                                 MASTER                                 SLAVE2
+  |                                      |                                      |
+  |<--------------PRECOMMIT--------------|                                      |
+  |                                      |--------------PRECOMMIT-------------->|
+  |					 |					|
+  |-----------5.0 PRECOMMIT ACK--------->|                                      |
+  |                                      |<-----------5.0 PRECOMMIT ACK---------|
+  |					 |      				|
+  |<--------------COMMIT-----------------|					|
+  |                                      |--------------COMMIT----------------->|
+  |					 |                                      |
+  |---------6.0 COMMITED SUCCESS-------->|                                      |
+  |                                      |<---------6.0 COMMITED SUCCESS--------|
+  |					 |					|
+  |<-------------END SUCCESS-------------|                                      |
+  |                                      |-------------END SUCCESS------------->|
+  |                                      |					|
+
+
+2.2.2 Process Failed in phase 1,  one of the slaves responds "5.1 ERROR PRECOMMIT" 
+
+SLAVE1                                 MASTER                                 SLAVE2
+  |                                      |                                      |
+  |<--------------PRECOMMIT--------------|                                      |
+  |                                      |--------------PRECOMMIT-------------->|
+  |					 |					|
+  |-----------5.0 PRECOMMIT ACK--------->|                                      |
+  |                                      |<---------5.1 ERROR PRECOMMIT---------|
+  |					 |      				|
+  |<---------------ABOTR-----------------|					|
+  |                                      |---------------ABORT----------------->|
+  |					 |                                      |
+  
+
+2.2.3 Process Failed in phase 2, one of the slaves responds "6.1 COMMITED UNSUCCESS" 
+
+SLAVE1                                 MASTER                                 SLAVE2
+  |                                      |                                      |
+  |<--------------PRECOMMIT--------------|                                      |
+  |                                      |--------------PRECOMMIT-------------->|
+  |					 |					|
+  |-----------5.0 PRECOMMIT ACK--------->|                                      |
+  |                                      |<-----------5.0 PRECOMMIT ACK---------|
+  |					 |      				|
+  |<--------------COMMIT-----------------|					|
+  |                                      |------------ --COMMIT---------------->|
+  |					 |                                      |
+  |---------6.0 COMMITED SUCCESS-------->|                                      |
+  |                                      |<-------6.1 COMMITED UNSUCCESS--------|
+  |					 |					|
+  |<-----------END UNSUCCESS-------------|                                      |
+  |                                      |-----------END UNSUCCESS------------->| 
+  |                                      |					|
+
+2.2.4 Process Failed in phase 2, all slaves respond "6.0 COMMITED SUCCESS" in stage 2, but the master operation performed unsuccessfully
+
+SLAVE1                                 MASTER                                 SLAVE2
+  |                                      |                                      |
+  |<--------------PRECOMMIT--------------|                                      |
+  |                                      |--------------PRECOMMIT-------------->|
+  |					 |					|
+  |-----------5.0 PRECOMMIT ACK--------->|                                      |
+  |                                      |<-----------5.0 PRECOMMIT ACK---------|
+  |					 |      				|
+  |<--------------COMMIT-----------------|					|
+  |                                      |---------------COMMIT---------------->|
+  |					 |                                      |
+  |---------6.0 COMMITED SUCCESS-------->|                                      |
+  |                                      |<--------6.0 COMMITED SUCCESS---------|
+  |					 |					|
+  |<-----------END UNSUCCESS-------------|                                      |
+  |                                      |-----------END UNSUCCESS------------->| 
+  |                                      |					|
+
+3 FSM(Finite-state machine) design
+
+We designed FSM for synchronization server, slave and user client.
+
+typedef enum syncState
+{
+    SYNC_DISCONNECT = 0,
+    SYNC_IDLE, // connected between master and slaves
+
+    //master
+    SYNC_M_PRECOMMIT_MULTICASTED, // write or replace command received from a client, precommit command broadcasted
+    SYNC_M_PRECOMMITED,           // received precommit ack from all slaves
+    SYNC_M_PRECOMMIT_UNSUCCESS,   // received error precommit from at lease one slave, or time out
+    SYNC_M_COMMITED,              // commit command broadcasted
+    SYNC_M_OPERATION_PERFORMED,   // received commited success from all slaves
+    SYNC_M_OPERATION_UNSUCCESS,   // received commited unsuccess from at lease one slave, or time out 
+
+    //slave
+    SYNC_S_PRECOMMIT_RECEIVED,    // received precommit command from master
+    SYNC_S_PRECOMMIT_ACK,         // precommit ack responded to master
+    SYNC_S_COMMITED,              // received commit command from master
+    SYNC_S_UNDO,                  // received end unsuccess command from master, or time out
+
+    //user client
+    SYNC_U_WAITING_COMMIT,        // the master sent precommit
+    SYNC_U_WAITING_SAVE,          // the master sent commit     
+    SYNC_U_SAVING,                // the master saving message
+    SYNC_U_SAVED,                 // the master saved message
+
+    SYNC_MAX
+}syncState;
+
+We disigned two types of timers, one for master state, and the other for slave states. The default time out time is 10 seconds.
+
+4 Concurrent design
+
+The application can work as synchronization server and slave at the same time. Meanwhile, as a master, it can syncronizes the write and replace command from multiple clients with multiple slaves at the same time; as a slave, it can interact with multiple servers at the same time.As we designed message-number in command and response message, both the mater and salve can distinguish the operation by unique message-number.

@@ -1,0 +1,433 @@
+Dianyong Chen，002288254
+dchen20@ubishops.ca
+
+CS590-challenge 3 (Bulletin Board Server)
+
+
+Code and Documents Explanation
+---------------------------------
+
+1 Module "bootup" [bootup.cpp]:	
+  The MAIN Module, where the program flow starts. It processes system bootups, terminates, restarts, and handles signals.
+  
+  When system bootups, it includes follows main processes:
+  load config file and command option
+  create client list
+  create client event queue
+  create thread pool
+  init bbfile access semaphores
+  init sync server peer list
+  create tcp connection thread
+  create sync state timer of master
+  create sync state timer of slave
+
+  When system terminates, it includes following main process:
+  destroy client list
+  destroy client event queue
+  destroy sync server list
+  destroy timer
+  destroy bbfile access semaphores
+  destroy connection
+  close open file
+
+  It includes signal handler as follows:
+  sigint_handler
+  sigquit_handler
+  sighup_handler
+															
+2 Module "config" [config.cpp, config.h]:
+  Load config file, load command option, alloc and manage message number.
+
+  It defines the following data structure:
+  typedef struct sysCfg
+  {
+    unsigned short thMax;
+    unsigned short bbPort;
+    unsigned short syncPort;
+    char bbFile[256];
+    char peers[256];
+    bool daemon;
+    bool debug;
+    char cfgFile[128];
+    bool syncEnalbe;
+    unsigned int maxConnections;
+    unsigned int debugLevel;
+  }sysCfg;
+
+  It provides the following API:
+  int print_config();
+  int load_config();
+  int load_option();
+  std::string alloc_new_msg_number();																
+																
+3 Module "connection" [connction.cpp, connection.h]:
+  Create and manage all tcp connections, both client connections and sync server and slave connections.
+  Maintain select tcp connection fd set.
+
+  It provides the following API:
+  int start_conn_service();
+  int create_tcp_server_sock(unsigned int port);
+  void conn_init();
+  void conn_set_fdset(fd_set *pFdSet);
+  void conn_check_fdset(fd_set *pFdSet);
+  void conn_add(int fd);
+  void conn_del(int fd);
+  void conn_close_all();
+  void destroy_connection();  
+
+4 Module "event" [event.cpp]:
+  Process client connections, syncronization and time out events.
+
+  It provides the following API:
+  int proc_client_ev_accept(clientEventCB *pClientEv);
+  int proc_client_ev_recv(clientEventCB *pClientEv);
+  int proc_sync_ev_precommit_ack(clientEventCB *pClientEv);
+  int proc_sync_ev_precommit_ack(clientEventCB *pClientEv);
+  int proc_sync_ev_commit_success(clientEventCB *pClientEv);
+  int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv);
+  int proc_sync_ev_master_timeout(clientEventCB *pClientEv);
+  int proc_sync_ev_slave_timeout(clientEventCB *pClientEv);
+
+5 Module "list" [list.cpp, list.h]:
+  Create and manage client, syncronization server list.
+  Manage client, syncronization server and slave Finite-state machines.
+
+  It defines the following data structure:
+  typedef struct _clientCB
+  {
+    int fd;
+    clientType type;
+    clientCmdType cmd;
+    syncState slaveState;
+    char name[64];
+    char ip[32];
+    unsigned int port;
+    bool slaveTimeout;
+    std::string msgNumber;
+    std::string msg;
+    LIST_ENTRY(_clientCB) p;
+  }clientCB;
+
+  typedef struct _syncServerCB
+  {
+    int fd;
+    std::string hostname;
+    std::string ip;
+    unsigned int port;
+    syncState state;
+    syncState masterState;
+    LIST_ENTRY(_syncServerCB) p;
+  }syncServerCB;
+
+  It provides the following API:
+  int create_client_list();
+  void destroy_client_list();
+  int client_list_add(clientCB *pClient);
+  int client_list_del(clientCB *pClient);
+  int create_sync_server_list();
+  void destroy_sync_server_list();
+  int sync_server_list_add(syncServerCB *psyncServer);
+  int sync_server_list_del(syncServerCB *psyncServer);
+  int sync_server_list_clear();
+  int sync_set_slave_state(clientCB *pClient, syncState state);
+  int sync_set_master_state(syncState state);
+  int sync_set_client_state(clientCB *pClient, syncState state);
+
+6 Module "queue" [queue.cpp, queue.h]:
+  Create and manage client event queue.
+
+  It defines the following data structure:
+  typedef struct _clientEventCB
+  {
+    int fd;
+    clientEv event;
+    clientType type;
+    std::string msgNumber;
+    std::string response;
+    STAILQ_ENTRY(_clientEvent) p;
+  }clientEventCB;
+
+  It provides the following API:
+  int create_client_event_queue();
+  void destroy_client_event_queue();
+  void enClientEventQueue(clientEventCB *pClientEv);
+  clientEventCB *deClientEventQueue();
+  bool isClientEventQueueEmpty();
+
+7 Module "semaphore" [semaphore.cpp, semaphore.h]:
+  The implementation of access control to the bulletin board file.
+
+  It provides the following API:
+  int init_bbfile_access_semahpores();
+  int destroy_bbfile_access_semahpores();
+  void read_start();
+  void read_end();
+  void write_start();
+  void write_end();
+
+8 Module "msg" [msg.cpp, msg.h]:
+  The process of client, sync master and slave messages.
+
+  It provides the following API:
+  int process_client_msg(clientCB *pClient, char *buf, int length, std::string& response);
+  int process_sync_master_msg(clientCB *pClient, char *buf, int length, std::string& response);
+  int process_sync_slave_msg(clientCB *pClient, char *buf, int length, std::string& response);
+
+9 Module "sync" [sync.cpp, sync.h]:
+  The implementation of synchronization features, including initializing server peers list, sending sync messages and FSM maintainance.
+  
+  It defines the following data structure:
+  typedef enum syncState
+  {
+    SYNC_DISCONNECT = 0,
+    SYNC_IDLE, 
+    //master
+    SYNC_M_PRECOMMIT_MULTICASTED, 
+    SYNC_M_PRECOMMITED,           
+    SYNC_M_PRECOMMIT_UNSUCCESS,   
+    SYNC_M_COMMITED,              
+    SYNC_M_OPERATION_PERFORMED,   
+    SYNC_M_OPERATION_UNSUCCESS, 
+    //slave
+    SYNC_S_PRECOMMIT_RECEIVED,    
+    SYNC_S_PRECOMMIT_ACK, 
+    SYNC_S_COMMITED,  
+    SYNC_S_UNDO,  
+    //user client
+    SYNC_U_WAITING_COMMIT,
+    SYNC_U_WAITING_SAVE,
+    SYNC_U_SAVING,
+    SYNC_U_SAVED,
+    SYNC_MAX
+  }syncState;
+
+  It provides the following API:
+  int init_sync_server_list();
+  int init_sync_server_connection();
+  int sync_send_precommit();
+  int sync_send_abort();
+  int sync_send_commit(clientCmdType type, std::string& msgbody);
+  int sync_send_success(bool isSuccessful, std::string& msgNumber);
+  int sync_send_event(clientEv type, std::string& msgNumber, int fd, std::string& msg);
+  int sync_send_event_timeout(clientEv type);
+  bool sync_check_server_state(syncState state);
+  bool sync_check_service_enable();
+  int sync_connect_to_server(std::string& ip, unsigned int port);
+
+  int create_timer_master();
+  int start_timer_master(int sec);
+  int stop_timer_master();
+  int delete_timer_master();
+
+  int create_timer_slave();
+  int start_timer_slave(int sec);
+  int stop_timer_slave();
+  int delete_timer_slave();
+  void destroy_timer();
+
+10 Makefile
+   The makefile to build the code.
+
+11 bbserv.conf
+   The config file of bbserv.
+
+12 bbfile
+   The file to record clients' message.
+
+13 bbserv.pid
+   Record the PID of bbserv.
+
+14 bbserv.log
+   Console output is redirected to this file when bbserv runs as a daemon.
+
+15 protocol2pc
+   The explanation of design of peer communication protocol.
+
+16 README
+   Code and documents explanation, user guide.
+
+
+
+User Guide
+-----------
+
+1 Building code
+Run command "make" to build the code and produce executable document "bbserv" in the working directory.
+Run command "make clean" to remove all the objects, executable bbserv, bbserv.log, bbserv.pid and any other unnecessary files.
+
+2 Run bbserv
+When running bbserv, the following command option is accepted:
+ ./bbserv [-b bbfile] [-T T_MAX] [-p bp] [-s sp] [-f] [-d] [-c bbfile] [peer0_IP:peer0_port] ...
+The options can be given in any order, and all the switches are optional. except the command line arguments which should always be given at the end.
+
+3 Client
+The BBserver can handle any type of client (telnet is preferred).
+When using telnet, run command "telnet server_ip/domain_name bp" to connect to the server.
+
+4 Handling signals 
+The PID of bbserv is recorded in file bbserv.pid.
+SIGQUIT or SIGINT can be issued to kill the bbserv process ensuring proper routine and data maintenance.
+SIGHUP can be issued to restart the bbserv process ensuring proper routine and data maintenance.
+
+5 Log
+When DAEMON=false or 0 in config file or "-f" is issued, bbserv logs to console.
+When DAEMON=true or 1 in config file and "-f" is not issued, bbserv runs as a daemon, the console output is redirected to file bbserv.log.
+
+6 Debugging
+When DEBUG=true or 1 in config file or "-d" is issued, bbserv prints out basic debug messages to console or bbserv.log according to 5.
+The debug level can alse be configured by -D option to print out app, event queue and connection debug messages.
+
+7 Concurrency performance
+Theoretically, the maximum tcp connections including clients and syncronization server peers is 1024, which is defined in macro MAX_CONN in connection.h, but the practical limit depends on computer performance.
+The design archtecture is as follows:
+   
+  Clients Sync_peers
+       |   |
+    TCP_SELECT   
+          |      TIMER
+          |       |
+         EVENT_QUEUE               Events: EV_ACCEPT
+              |                            EV_RECV
+         THREAD_POOL                       EV_SYNC_PRECOMMIT_ACK                           
+              |                            EV_SYNC_PRECOMMIT_ERR
+        EVENT_PROCESS                      EV_SYNC_COMMIT_SUCCESS
+                                           EV_SYNC_COMMIT_UNSUCCESS
+                                           EV_SYNC_MASTER_TIMEOUT
+                                           EV_SYNC_SLAVE_TIMEOUT
+                                        
+
+
+Test Cases
+------------
+
+1 Configuration
+1.1 config file
+Upon startup, bbserv can read bbserv.conf and load Tmax, bp, sp, bbfile, peers, d, and D configuration successfully.
+When some line is missing in bbserv.conf, set default value.
+
+1.2 config command line
+Upon startup, when config command option is input, load option successfully.
+If some option is specified in both the configuration file and by a switch on the command line then the command line version takes precedence.
+
+1.3 client logon
+One and multiple clients can successfully logon the bbserver by telent at the same time, all clients receive "0.0 greeting".
+
+1.4 client logout
+When client input "QUIT" command, client receives "4.0 BYE", then bbserv close the connection.
+
+1.5 command USER
+When client input "USER name" command, if "name" does not contain character "/", client receives "1.0 HELLO name", otherwise, client receives "1.2 ERROR USER". 
+This command can be sent more than once by client.
+If a client does not send this command at all, the default user is "nobody".
+
+1.6 command READ
+When a client input "READ message-number" command:
+if this message exists on the server, the client receives "2.0 MESSAGE message-number poster/message".
+if this message does not exist, the client receives "2.1 UNKNOWN message-number".
+
+1.7 command WRITE
+When a client input "WRITE message" command:
+With no peers configured, the client receives "3.0 WROTE message-number", message "message-number/user/message" is written in bbfile.
+With one sync peer configured, the successful process is as follows:
+
+MASTER                                 SLAVE
+  |                                      |
+  |--------------PRECOMMIT-------------->|
+  |					 |
+  |<-----------5.0 PRECOMMIT ACK---------|
+  |      				 |
+  |--------------COMMIT----------------->|
+  |                                      |
+  |<---------6.0 COMMITED SUCCESS--------|
+  |					 |
+  |-------------END SUCCESS------------->|
+  |                                      |
+       
+ The client receives "3.0 WROTE message-number", message "message-number/user/message" is written in bbfile both on master and slave.
+ If error occurs in phase 1 or phase 2, the client receives "3.2 ERROR WRITE", no message will be written in bbfile.
+
+ With multiple sync peers configured, the successful process is as follows:
+ SLAVE1                                MASTER                                 SLAVE2
+  |                                      |                                      |
+  |<--------------PRECOMMIT--------------|                                      |
+  |                                      |--------------PRECOMMIT-------------->|
+  |					 |					|
+  |-----------5.0 PRECOMMIT ACK--------->|                                      |
+  |                                      |<-----------5.0 PRECOMMIT ACK---------|
+  |					 |      				|
+  |<--------------COMMIT-----------------|					|
+  |                                      |--------------COMMIT----------------->|
+  |					 |                                      |
+  |---------6.0 COMMITED SUCCESS-------->|                                      |
+  |                                      |<---------6.0 COMMITED SUCCESS--------|
+  |					 |					|
+  |<-------------END SUCCESS-------------|                                      |
+  |                                      |-------------END SUCCESS------------->|
+  |                                      |					|
+ 
+ The client receives "3.0 WROTE message-number", message "message-number/user/message" is written in bbfile on all master and slaves.
+ If error occurs in phase 1 or phase 2, the client receives "3.2 ERROR WRITE", no message will be written in bbfile.
+
+ 1.8 command REPLACE
+ When a client input "REPLACE message-number/message" command:
+ With no peers configured, 
+ if this message-number exists on server, the client receives "3.0 WROTE message-number", original message is replaced by "message-number/user/message" in bbfile.
+ if this message-number does not exist on server, the client receives "3.1 UNKNOWN message-number".
+
+ With one sync peer configured, the successful process is as follows:
+
+ MASTER                                 SLAVE
+  |                                      |
+  |--------------PRECOMMIT-------------->|
+  |					 |
+  |<-----------5.0 PRECOMMIT ACK---------|
+  |      				 |
+  |--------------COMMIT----------------->|
+  |                                      |
+  |<---------6.0 COMMITED SUCCESS--------|
+  |					 |
+  |-------------END SUCCESS------------->|
+  |                                      |
+
+ The client receives "3.0 WROTE message-number", all original messages both on master and slave are replaced by "message-number/user/message" in bbfile.
+ If this message-number does not exist either on server or slave, the client receives "3.1 UNKNOWN message-number".
+ If other error occurs in phase 1 or phase 2, the client receives "3.2 ERROR WRITE".
+
+ With multiple sync peers configured, the successful process is as follows:
+ SLAVE1                                MASTER                                 SLAVE2
+  |                                      |                                      |
+  |<--------------PRECOMMIT--------------|                                      |
+  |                                      |--------------PRECOMMIT-------------->|
+  |					 |					|
+  |-----------5.0 PRECOMMIT ACK--------->|                                      |
+  |                                      |<-----------5.0 PRECOMMIT ACK---------|
+  |					 |      				|
+  |<--------------COMMIT-----------------|					|
+  |                                      |--------------COMMIT----------------->|
+  |					 |                                      |
+  |---------6.0 COMMITED SUCCESS-------->|                                      |
+  |                                      |<---------6.0 COMMITED SUCCESS--------|
+  |					 |					|
+  |<-------------END SUCCESS-------------|                                      |
+  |                                      |-------------END SUCCESS------------->|
+  |                                      |					|
+
+ The client receives "3.0 WROTE message-number", all original messages on all master and slaves are replaced by "message-number/user/message" in bbfile.
+ If this message-number does not exist either on server or any slave, the client receives "3.1 UNKNOWN message-number".
+ If other error occurs in phase 1 or phase 2, the client receives "3.2 ERROR WRITE".
+
+ 1.9 bbfile access
+ If bbfile does not exists upon server initiation, it is created.
+ Message-numbers are assigned by the server in sequence from 1 to INT_MAX, when peers configured, slaves update local message-number count by receiving commit command to assure there are no same message number on multiple servers.
+ Simultaneous reads of the bbfile by different threads is allowed.
+ No other operation (read or write) is allowed when a thread is writting to bbfile.
+ If a write request is issued while several read operations are in progress, the write will wait until the current reads complete.
+
+ 2.0 signal handling
+ SIGQUIT and SIGINT terminate bbserv, release all resources alloced.
+ SIGHUP restarts bbserv immediately, re-reads the configuration file, any change of d is disregarded.
+
+ 2.1 daemon mode
+ When d is configured, bbserv runs as a daemon, redirect console output to file "bbserv.log", detaches from the controlling tty, puts itself into background.
+ Bbserv can be killed by "kill PID" command, PID is recorded in file "bbserv.pid".
+
