@@ -143,7 +143,7 @@ int sync_send_precommit()
             sync_server_list_set_state(pServer, SYNC_M_PRECOMMIT_MULTICASTED);
 
             LOG(DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
+                cout << "Send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else{
             return -1;
@@ -175,7 +175,7 @@ int sync_send_abort()
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
             LOG(DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
+                cout << "Send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else{
             return -1;
@@ -222,7 +222,7 @@ int sync_send_commit(clientCmdType type, string& msgbody)
             sync_server_list_set_state(pServer, SYNC_M_COMMITED);
 
             LOG(DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
+                cout << "Send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else{
             return -1;
@@ -264,7 +264,7 @@ int sync_send_success(bool isSuccessful, string& msgNumber)
             sync_server_list_set_state(pServer, SYNC_IDLE);
 
             LOG(DEBUG_LEVEL_D)
-                cout << "send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
+                cout << "Send sync msg to " << pServer->ip <<":"<<pServer->port<<":" <<msg<< endl;
         }
         else{
             return -1;
@@ -299,11 +299,11 @@ int sync_connect_to_server(string& ip, unsigned int port)
 
     if(ret == 0){
         LOG(DEBUG_LEVEL_D)
-            cout << "connected to sync server:" <<ip<<":"<<port<<endl;
+            cout << "Connected to sync server peer:" <<ip<<":"<<port<<endl;
     }
     else{
         LOG(DEBUG_LEVEL_D)
-            cout << "ERROR: Failed to connect to sync server:" <<ip<<":"<<port<<endl;
+            cout << "ERROR: Failed to connect to sync server peer:" <<ip<<":"<<port<<endl;
 
         return -1;
     }
@@ -380,7 +380,7 @@ timer_t timerid_master, timerid_slave;
 void handle_master_timeout(int sig)
 {
     LOG(DEBUG_LEVEL_D)
-        cout <<"sync master state timeout!"<<endl;  
+        cout <<"Sync master state timeout!"<<endl;  
 
     sync_send_event_timeout(EV_SYNC_TIMEOUT_MASTER);
 
@@ -393,7 +393,7 @@ void handle_slave_timeout(int sig)
     //signal(sig, SIG_INT);
     //signal(SIG_INT, handler);
     LOG(DEBUG_LEVEL_D)
-            cout <<"sync slave state timeout!"<<endl;   
+            cout <<"Sync slave state timeout!"<<endl;   
 
     sync_send_event_timeout(EV_SYNC_TIMEOUT_SLAVE);
 
@@ -503,7 +503,7 @@ int start_timer_master(int sec)
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-        cout << "start sync master state timer:" <<sec<<"S"<<endl;
+        cout << "Start sync master state timer:" <<sec<<"s"<<endl;
 
     return 0;
 }
@@ -520,7 +520,7 @@ int start_timer_slave(int sec)
     CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-        cout << "start sync slave state timer:" <<sec<<"S"<<endl;
+        cout << "Start sync slave state timer:" <<sec<<"s"<<endl;
 
     return 0;
 }
@@ -537,7 +537,7 @@ int stop_timer_master()
     CHECK(timer_settime(timerid_master, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-        cout << "stop sync master state timer" << endl;
+        cout << "Stop sync master state timer" << endl;
 
     return 0;
 }
@@ -554,7 +554,7 @@ int stop_timer_slave()
     CHECK(timer_settime(timerid_slave, 0, &timerspec, NULL));
 
     LOG(DEBUG_LEVEL_D)
-        cout << "stop sync slave state timer" << endl;
+        cout << "Stop sync slave state timer" << endl;
 
     return 0;
 }

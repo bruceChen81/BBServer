@@ -39,7 +39,7 @@ int getParaFromBuf(char *buf, char *para, char *keyword){
 
 int print_config()
 {
-    LOG(DEBUG_LEVEL_D){
+    LOG(DEBUG_LEVEL_NONE){
         cout << "THMAX: " << SysCfgCB.thMax << endl;
         cout << "BBPORT: " << SysCfgCB.bbPort << endl;
         cout << "SYNCPORT: " << SysCfgCB.syncPort << endl;
@@ -85,7 +85,10 @@ int load_config(const char *pCfgFile)
     //SysCfgCB.maxConnections = SysCfgCB.thMax;   
 
     fd = open(SysCfgCB.cfgFile, O_RDONLY);
-    CHECK(fd);
+    //CHECK(fd);
+
+    if(fd < 0)
+        return -1;
 
     bytesRead = read(fd, buf, sizeof(buf));
     CHECK(bytesRead);
@@ -304,7 +307,7 @@ int load_option(int argc, char **argv)
     }
 
     if(cflag || bflag || tflag || pflag || sflag || fflag || dflag ||Dflag || peerflag){
-        LOG(DEBUG_LEVEL_D)
+        LOG(DEBUG_LEVEL_NONE)
             cout << "Load config option command line success!" << endl;
 
         print_config();
@@ -386,8 +389,8 @@ string alloc_new_msg_number()
 
     string strNumber = std::to_string(number);
 
-    LOG(DEBUG_LEVEL_APP)
-        cout << "alloc new msg number:" << strNumber <<endl;
+    LOG(DEBUG_LEVEL_D)
+        cout << "Alloc new msg number:" << strNumber <<endl;
 
     return strNumber;
 }

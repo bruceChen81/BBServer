@@ -161,9 +161,11 @@ int process_sync_slave_msg(clientCB *pClient, char *buf, int length, string& res
 
         sync_set_slave_state(pClient, SYNC_S_COMMITED);
 
+        update_msg_number(msgnumber);
+
         if(save_msg_write(msgSave) == 0){
             response.append("6.0 COMMITED SUCCESS");
-            update_msg_number(msgnumber);
+            //update_msg_number(msgnumber);
         }
         else{
             response.append("6.1 COMMITED UNSUCCESS");
@@ -199,10 +201,10 @@ int process_sync_slave_msg(clientCB *pClient, char *buf, int length, string& res
             response.append("6.0 COMMITED SUCCESS");
         }
         else if(ret == -1){
-            response.append("6.1 COMMITED UNSUCCESS UNKNOWN");
+            response.append("6.2 COMMITED UNSUCCESS UNKNOWN");
         }
         else{
-            response.append("6.2 COMMITED UNSUCCESS");
+            response.append("6.1 COMMITED UNSUCCESS");
         }
 
         response += " ";
@@ -393,8 +395,22 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
 
         string numberInput,msgInput;
 
+        //wrong format
+        if(arg2.find("/") == std::string::npos){
+            response.append("ERROR COMMAND");
+            return 0;
+        }
+
         numberInput = arg2.substr(0, arg2.find("/"));
         msgInput = arg2.substr(arg2.find("/")+1);
+
+        LOG(DEBUG_LEVEL_APP)
+            cout <<"replace message body:"<< msgInput.size()<<endl;
+
+        if(msgInput.size() == 0){
+            response.append("ERROR COMMAND");
+            return 0;
+        }
 
         if(strlen(pClient->name) != 0){
             username += string(pClient->name, strlen(pClient->name));
@@ -458,8 +474,8 @@ int process_client_msg(clientCB *pClient, char *buf, int length, string& respons
 //return 0:success; -1: write file error
 int save_msg_write(string& msgSave)
 {
-    if (SysCfgCB.debugLevel >= DEBUG_LEVEL_D)
-        cout << "SAVE MSG WRITE:"<< msgSave <<endl;
+    LOG(DEBUG_LEVEL_D)
+        cout << endl<<"SAVE MSG WRITE:"<< msgSave <<endl;
 
     fstream myFile;
     int ret = -1;
@@ -487,7 +503,7 @@ int save_msg_write(string& msgSave)
 int save_msg_replace(string& msg)
 {
     LOG(DEBUG_LEVEL_D)
-        cout << "SAVE MSG REPLACE:"<<msg <<endl;
+        cout << endl<<"SAVE MSG REPLACE:"<<msg <<endl;
 
     string line, newLine, numberInput, numberSaved;
     fstream myFile;

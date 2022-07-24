@@ -105,7 +105,7 @@ int proc_client_ev_accept(clientEventCB *pClientEv)
 
     if(new_fd >= 0){
         LOG(DEBUG_LEVEL_D)
-            cout << "Client: " << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
+            cout << "Client:" << inet_ntoa(clientAddr.sin_addr) << ":" << ntohs(clientAddr.sin_port) << " connected!" << endl;
 
         //add new fd to fd set
         conn_add(new_fd);
@@ -164,8 +164,17 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
     {
         conn_del(pClient->fd);
 
-        if(SysCfgCB.debugLevel >= DEBUG_LEVEL_D)
-            cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+        LOG(DEBUG_LEVEL_D){
+
+            if(pClient->type == CLIENT_USER){
+                cout << "Client:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+            }
+            else{
+                cout << "Sync peer:" << pClient->ip<<":"<<pClient->port << " disconnected!" << endl;
+            }
+
+        }
+            
 
         if(pClient->type == CLIENT_SYNC_MASTER)
         {
@@ -179,8 +188,7 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
     else if (bytesRecved > 0)
     {
         LOG(DEBUG_LEVEL_D){
-            cout << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"
-                 << string(buf, 0, bytesRecved)<< endl;
+            cout << endl << "Recv msg from " << pClient->ip <<":" << pClient->port<<" [" << bytesRecved << " Bytes]:"<< string(buf, 0, bytesRecved);
         }
 
         string response;
@@ -201,9 +209,13 @@ int proc_client_ev_recv(clientEventCB* pClientEv)
 
             // if QUIT cmd, disconnet the client
             string bye = "4.0 BYE";
-            if(0 == response.compare(0, bye.size(), bye)){
-                sleep(1);
+            if(0 == response.compare(0, bye.size(), bye)){               
 
+                LOG(DEBUG_LEVEL_D)
+                    cout << "Disconnect user Client[" << pClient->name << "]:" << pClient->ip << ":" << pClient->port << endl;
+
+                usleep(100000);
+                
                 conn_del(pClient->fd);
                 client_list_del(pClient);
             }
@@ -311,9 +323,9 @@ int proc_sync_ev_commit_unsuccess(clientEventCB *pClientEv)
             response.append("3.2 ERROR WRITE");
         }
         else if(pClientUser->cmd == CLIENT_CMD_REPLACE){
-            string str = "6.1 COMMITED UNSUCCESS UNKNOWN";
+            string str = "6.2 COMMITED UNSUCCESS UNKNOWN";
 
-            if(pClientEv->response.compare(0, str.length(), str) == 0) //"6.1 COMMITED UNSUCCESS unknown-message-number")
+            if(pClientEv->response.compare(0, str.length(), str) == 0) //"6.2 COMMITED UNSUCCESS UNKNOWN message-number")
             {
                 response.append("3.1 UNKNOWN ");
                 //response.append(pClientUser->msg.substr(0, pClientUser->msg.find("/")));

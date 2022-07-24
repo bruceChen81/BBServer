@@ -106,11 +106,16 @@ int sys_load_config(int argc, char *argv[])
 {
     if (load_config((char *)DEFAULT_CFG_FILE) >= 0){
 
-        LOG(DEBUG_LEVEL_D)
-            cout << "Load config file success!" << endl;
-    }
+        LOG(DEBUG_LEVEL_NONE)
+            cout << "Load config success!" << endl;
 
-    print_config();
+        print_config();
+    }
+    else{
+        LOG(DEBUG_LEVEL_NONE)
+            cout << "Can not read default config file \"bbserv.conf\"!" << endl;
+    }
+  
 
     load_option(argc, argv);
 
@@ -137,6 +142,9 @@ int sys_reload_config_sighub()
 
     SysCfgCB.debug = debug;
     SysCfgCB.debugLevel = debug ? DEBUG_LEVEL_D : DEBUG_LEVEL_NONE;
+
+    LOG(DEBUG_LEVEL_NONE)
+            cout << "Reload config success!" << endl;
 
     print_config();
 
@@ -224,7 +232,7 @@ int sys_terminate()
 
 void sigint_handler(int sig)
 {
-    cout << "catch SIGINT signal!" <<endl;
+    cout << "Catch SIGINT signal!" <<endl;
     sys_terminate();
 
     signal(SIGINT, SIG_DFL);
@@ -234,7 +242,7 @@ void sigint_handler(int sig)
 
 void sigquit_handler(int sig)
 {
-    cout << "catch SIGQUIT signal!" <<endl;
+    cout << "Catch SIGQUIT signal!" <<endl;
     //waiting end of file ope
 
     //write_start();
@@ -246,7 +254,7 @@ void sigquit_handler(int sig)
 
 void sighup_handler(int sig)
 {
-    cout << "catch SIGHUP signal!" <<endl;
+    cout << "Catch SIGHUP signal!" <<endl;
 
     sys_terminate();
 

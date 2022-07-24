@@ -22,12 +22,12 @@ int readerCnt = 0;
 void write_start()
 {
     LOG(DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: write trying!" << std::endl;
+        std::cout << "BBFile Access: WRITE trying!" << std::endl;
 
     sem_wait(&wrt);
 
     LOG(DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: write begin!" << std::endl;
+        std::cout << "BBFile Access: WRITE begin!" << std::endl;
 
     return;
 }
@@ -40,7 +40,7 @@ void write_end()
     sem_post(&wrt);
 
     LOG(DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: write end!" << std::endl;
+        std::cout << "BBFile Access: WRITE end!" << std::endl;
 
     return;
 }
@@ -50,7 +50,7 @@ void write_end()
 void read_start()
 {
     LOG(DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: read trying!" << std::endl;
+        std::cout << "BBFile Access: READ trying!" << std::endl;
 
     pthread_mutex_lock(&readerMutex);
     readerCnt++;
@@ -60,7 +60,7 @@ void read_start()
     pthread_mutex_unlock(&readerMutex);
 
     LOG(DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: read begin! set reader count["<<readerCnt<<"]" << std::endl;
+        std::cout << "BBFile Access: READ begin! Set reader count["<<readerCnt<<"]" << std::endl;
 
     //for test
     bbfile_debug_wait(3);
@@ -80,7 +80,7 @@ void read_end()
     pthread_mutex_unlock(&readerMutex);
 
     LOG(DEBUG_LEVEL_D)
-        std::cout << "BBFile Access: read end!   set reader count["<<readerCnt<<"]" << std::endl;
+        std::cout << "BBFile Access: READ end!   Set reader count["<<readerCnt<<"]" << std::endl;
 
     return;
 }

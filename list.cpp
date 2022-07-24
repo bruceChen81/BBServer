@@ -187,7 +187,7 @@ int sync_set_slave_state(clientCB *pClient, syncState state)
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_D)
-        cout << "set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
+        cout << "Set sync slave state [" <<syncStateArray[state] <<"]" << " Master:" << pClient->ip << ":" << pClient->port <<endl;
 
     switch(state){
         case SYNC_S_PRECOMMIT_ACK:
@@ -237,7 +237,7 @@ int sync_set_client_state(clientCB *pClient, syncState state)
     pthread_mutex_unlock(&clientListLock);
 
     LOG(DEBUG_LEVEL_D)
-                cout << "set user client state [" <<syncStateArray[state] <<"]" <<endl;
+                cout << "Set user client state [" <<syncStateArray[state] <<"]" <<endl;
 
     return 1;
 }
@@ -517,7 +517,7 @@ int sync_set_master_state(syncState state)
     pthread_mutex_unlock(&syncServerListLock);
 
     LOG(DEBUG_LEVEL_D)
-        cout << "set sync master state [" <<syncStateArray[state] <<"]" <<endl;
+        cout << "Set sync master state [" <<syncStateArray[state] <<"]" <<endl;
 
     //timer
     switch(state){
